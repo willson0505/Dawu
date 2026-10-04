@@ -306,7 +306,7 @@ async function loadJSON(url) {
     return await response.json();
 }
 
-/* 核心清理與正規化：移除引號、括號與空白，轉成純淨字串以利模糊比對 */
+/* 核心清理與正規化：移除引號、括號與空白，轉成純淨字串 */
 function cleanString(str) {
     if (!str) return "";
     return String(str)
@@ -320,11 +320,9 @@ function cleanString(str) {
 function getGeoPlaceName(feature) {
     if (!feature || !feature.properties) return "";
     const p = feature.properties;
-    // 嚴格對應您的需求：欄位名稱就是「地名」
     if (p["地名"] !== undefined && p["地名"] !== null) {
         return String(p["地名"]).trim();
     }
-    // 備用防呆：若有些資料剛好叫「地名 」或其它常見變形
     for (const key in p) {
         if (key.trim() === "地名") {
             return String(p[key]).trim();
@@ -333,28 +331,21 @@ function getGeoPlaceName(feature) {
     return "";
 }
 
-/* 智慧模糊配對：檢查內文詞彙與地圖地名是否核心相符 */
+/* 智慧嚴謹配對：確保文字與 GeoJSON 地名確實互為包含或吻合 */
 function isMatch(textTerm, geoName) {
     const cleanText = cleanString(textTerm);
     const cleanGeo = cleanString(geoName);
     if (!cleanText || !cleanGeo) return false;
 
-    // 彼此包含（例如內文有 tabakasu，地圖有 tabakasu社蕃地）
-    if (cleanGeo.includes(cleanText) || cleanText.includes(cleanGeo)) {
+    // 彼此包含（例如內文有 Chiyokakurai，地圖有 Chiyokakurai）
+    if (cleanGeo === cleanText || cleanGeo.includes(cleanText) || cleanText.includes(cleanGeo)) {
         return true;
-    }
-
-    // 若詞彙長度大於等於 2 且雷同
-    if (cleanText.length >= 2 && cleanGeo.length >= 2) {
-        if (cleanGeo.substring(0, 2) === cleanText.substring(0, 2)) {
-            return true;
-        }
     }
 
     return false;
 }
 
-let geoNameMap = []; // 儲存 { feature, rawName, cleanName }
+let geoNameMap = [];
 
 function buildPlaceIndex() {
     geoNameMap = placeFeatures.map(f => {
@@ -378,7 +369,7 @@ function findMatchingFeatures(textTerm) {
     return matched;
 }
 
-/* 計算多個 Features 的綜合中心點與邊界，供自動平移對齊用 */
+/* 計算多個 Features 的綜合中心點 */
 function getFeaturesGroupInfo(features) {
     if (!features || features.length === 0) return null;
     const points = [];
@@ -408,17 +399,23 @@ function getFeaturesGroupInfo(features) {
     };
 }
 
-/* 高亮所有對應的多邊形（支援跨圖層同時點亮） */
+/* 高亮所有對應的多邊形（修正過濾器語法，確保只有對應的亮起） */
 function highlightFeatures(features) {
-    if (!features || features.length === 0) return;
+    if (!features || features.length === 0) {
+        clearHighlight();
+        return;
+    }
     const ids = features.map(f => f.properties.__feature_id__);
+    
+    // 修正：使用 ["literal", ids] 確保 MapLibre 過濾運算式正確運作
+    const filterExpr = ["in", ["get", "__feature_id__"], ["literal", ids]];
 
     if (map.getLayer("place-highlight")) {
-        map.setFilter("place-highlight", ["in", ["get", "__feature_id__"], ...ids]);
+        map.setFilter("place-highlight", filterExpr);
         map.setLayoutProperty("place-highlight", "visibility", "visible");
     }
     if (map.getLayer("place-highlight-outline")) {
-        map.setFilter("place-highlight-outline", ["in", ["get", "__feature_id__"], ...ids]);
+        map.setFilter("place-highlight-outline", filterExpr);
         map.setLayoutProperty("place-highlight-outline", "visibility", "visible");
     }
     activeFeatures = features;
@@ -521,14 +518,11 @@ function findPlaceOccurrences() {
     const story = document.querySelector(".paper-body");
     if (!story) return;
 
-    // 收集所有可能的關鍵詞（包含羅馬拼音、漢字）
-    // 依長度排序，確保優先匹配較長的複合詞
     let searchTerms = [];
     geoNameMap.forEach(item => {
         searchTerms.push(item.rawName);
     });
 
-    // 額外加入內文中常見的羅馬拼音/日文外來語關鍵字庫讓其能被順利捕捉
     const extraKeywords = ["タバカス", "Tabakasu", "ルラクシ", "Rurakushi", "ビララウ", "Birarau", "パウモリ", "Paumori", "チヨコゾル", "Chiyokozoru", "ツダカス", "Tsudakasu", "トビロウ", "Tobirou", "カラタラン", "Karataran", "マリドツプ", "Maridotsupu", "ポケツ", "Poketsu", "カアロワン", "Kaarowan", "トロコワン", "Torokowan", "パシヨロ", "Pashiyoro", "マリプル", "Maripuru", "シヨモル", "Shiyomoru", "トコブルイピリ", "Tokoburuipiri", "シヤコプ", "Shiyakopu", "トコホル", "Tokohoru", "チヨカクライ", "Chiyokakurai", "テババオ", "Tebabao", "テノコ", "Tenoko", "タバカス", "Tabakasu", "カクブラン", "Kakuburan", "ポリガツト", "Porigatsuto", "タリリク", "Taririku", "キナバリヤン", "Kinabariyan", "クダカス", "Kudakasu", "トアバル", "Toabaru", "トアカウ", "Toakau", "ハイブカイ", "Haibukai", "ラリバ", "Rariba", "トコトコワン", "Tokotokowan", "カケラブチャン", "Kakerabuchiyan", "チヨコプリ", "Chokoburi", "チヤチヤガトワン", "Chiyachiyagatowan", "太麻里", "羅打結", "鴨子蘭", "文里格", "猴子蘭", "蚶子崙", "大武窟", "察暗密", "打暗打蘭", "大武", "鴿子籠", "大烏萬", "拔子洞", "獅子獅", "大竹高", "甘壁壁", "大得吉"];
     
     searchTerms = [...new Set([...searchTerms, ...extraKeywords])];
@@ -611,17 +605,14 @@ function findPlaceOccurrences() {
                 span.className = "map-place";
                 span.textContent = text.substring(match.start, match.end);
 
-                // 滑鼠移入
                 span.addEventListener("mouseenter", function() {
                     activatePlace(span, match.term, true);
                 });
 
-                // 滑鼠移出
                 span.addEventListener("mouseleave", function() {
                     deactivatePlace();
                 });
 
-                // 點擊事件（支援手機/觸控板）
                 span.addEventListener("click", function(e) {
                     e.stopPropagation();
                     const info = getFeaturesGroupInfo(matchedFeatures);
@@ -647,7 +638,6 @@ function findPlaceOccurrences() {
     });
 }
 
-// 監聽滾動與調整大小
 map.on("move", updateConnectionLine);
 document.getElementById("story").addEventListener("scroll", updateConnectionLine);
 window.addEventListener("resize", updateConnectionLine);
@@ -666,7 +656,6 @@ map.on("load", async function() {
             ...(removeData.features || [])
         ];
 
-        // 幫所有 Feature 加上內部專用流水號 ID，確保跨圖層多多邊形能同時選取
         placeFeatures = rawFeatures.map((f, idx) => {
             if (!f.properties) f.properties = {};
             f.properties.__feature_id__ = idx;
@@ -730,7 +719,7 @@ map.on("load", async function() {
             paint: { "line-color": "#b71c1c", "line-width": 1.5 }
         });
 
-        // 懸停高亮圖層（超顯眼洋紅填滿 + 亮黃粗外框，支援同時點亮多個 Polygon）
+        // 懸停高亮圖層（預設不顯示，只有滑鼠碰到對應地名時才透過 filter 精準顯示對應的 Polygon）
         map.addLayer({
             id: "place-highlight",
             type: "fill",
