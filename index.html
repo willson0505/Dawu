@@ -41,6 +41,7 @@ body {
     overflow-y: auto;
     padding: 70px 55px 150px 55px;
     background: #f8f5ef;
+    transition: overflow 0.2s;
 }
 
 .main-title {
@@ -90,12 +91,11 @@ body {
     color: #ffffff;
 }
 
-/* 當被點擊釘選時的樣式 */
-.map-place.pinned {
+.map-place.active, .map-place.locked {
     background: rgba(255, 0, 85, 0.9);
     color: #ffffff;
     font-weight: bold;
-    border-bottom: 2px solid #ffffff;
+    box-shadow: 0 0 0 2px #ff0055;
 }
 
 /* 右側地圖 */
@@ -178,6 +178,14 @@ body {
     fill: #ff0055;
     stroke: #ffffff;
     stroke-width: 2;
+}
+
+/* MapLibre 彈窗微調 */
+.maplibregl-popup-content {
+    font-family: "Microsoft JhengHei", sans-serif;
+    padding: 12px 15px;
+    border-radius: 6px;
+    box-shadow: 0 3px 14px rgba(0,0,0,0.2);
 }
 
 @media (max-width: 900px) {
@@ -303,8 +311,12 @@ const DATA_FILES = {
 
 let placeFeatures = [];
 let activeFeatures = [];
-let pinnedSpan = null;       // 當前被釘選的文字 DOM 元素
-let pinnedFeatures = [];     // 當前被釘選的圖層 features
+let activeElement = null;
+
+// 新增鎖定狀態控制變數
+let isLocked = false;
+let lockedElement = null;
+const activePopup = new maplibregl.Popup({ closeButton: true, closeOnClick: true });
 
 async function loadJSON(url) {
     const response = await fetch(url, { cache: "no-cache" });
@@ -341,7 +353,10 @@ function isMatch(textTerm, geoName) {
     const cleanText = cleanString(textTerm);
     const cleanGeo = cleanString(geoName);
     if (!cleanText || !cleanGeo) return false;
-    return (cleanGeo === cleanText || cleanGeo.includes(cleanText) || cleanText.includes(cleanGeo));
+    if (cleanGeo === cleanText || cleanGeo.includes(cleanText) || cleanText.includes(cleanGeo)) {
+        return true;
+    }
+    return false;
 }
 
 let geoNameMap = [];
@@ -425,24 +440,16 @@ function clearHighlight() {
     activeFeatures = [];
 }
 
-/* 更新連接虛線 */
 function updateConnectionLine() {
-    if (!activeFeatures || activeFeatures.length === 0) return;
+    if (!activeFeatures || activeFeatures.length === 0 || !activeElement) return;
 
     const info = getFeaturesGroupInfo(activeFeatures);
     if (!info) return;
 
-    // 如果沒有被釘選的元素（例如純滑鼠懸停），找當前 hover 的元素；否則用 pinnedSpan
-    const targetElement = pinnedSpan || document.querySelector(".map-place:hover");
-    if (!targetElement) {
-        clearConnectionLine();
-        return;
-    }
-
     const mapPoint = map.project(info.center);
     const mapContainer = document.getElementById("map-container");
     const mapRect = mapContainer.getBoundingClientRect();
-    const textRect = targetElement.getBoundingClientRect();
+    const textRect = activeElement.getBoundingClientRect();
 
     const x1 = textRect.right;
     const y1 = textRect.top + textRect.height / 2;
@@ -466,43 +473,78 @@ function updateConnectionLine() {
 }
 
 function clearConnectionLine() {
-    if (pinnedSpan) return; // 如果有釘選就不清除線段
     const line = document.getElementById("connection-line");
     const dot = document.getElementById("connection-dot");
     line.style.display = "none";
     dot.style.display = "none";
+    if (activeElement && !isLocked) {
+        activeElement.classList.remove("active");
+    }
+    if (!isLocked) {
+        activeElement = null;
+    }
 }
 
-/* 釘選地名邏輯 */
-function pinPlace(span, textTerm) {
-    if (pinnedSpan) {
-        pinnedSpan.classList.remove("pinned");
-    }
-    pinnedSpan = span;
-    if (pinnedSpan) {
-        pinnedSpan.classList.add("pinned");
-    }
+/* 解除鎖定函式 */
+function unlockAll() {
+    isLocked = false;
+    lockedElement = null;
+    document.getElementById("story").style.overflowY = "auto"; // 恢復論文捲動
+    document.querySelectorAll(".map-place").forEach(el => el.classList.remove("locked", "active"));
+    activeElement = null;
+    clearHighlight();
+    clearConnectionLine();
+    activePopup.remove();
+}
+
+function activatePlace(element, textTerm, autoFly = true) {
     const matched = findMatchingFeatures(textTerm);
-    pinnedFeatures = matched;
+    if (matched.length === 0) return;
+
+    if (activeElement && activeElement !== element && !isLocked) {
+        activeElement.classList.remove("active");
+    }
+    activeElement = element;
+    if (!isLocked) {
+        activeElement.classList.add("active");
+    }
+
     highlightFeatures(matched);
+
+    const info = getFeaturesGroupInfo(matched);
+    if (info && autoFly) {
+        const bounds = map.getBounds();
+        const sw = bounds.getSouthWest();
+        const ne = bounds.getNorthEast();
+        const inView = info.center[0] >= sw.lng && info.center[0] <= ne.lng &&
+                       info.center[1] >= sw.lat && info.center[1] <= ne.lat;
+
+        if (!inView) {
+            map.easeTo({
+                center: info.center,
+                duration: 500,
+                essential: true
+            });
+        }
+    }
+
     updateConnectionLine();
 }
 
-/* 清除釘選 */
-function clearPin() {
-    if (pinnedSpan) {
-        pinnedSpan.classList.remove("pinned");
-    }
-    pinnedSpan = null;
-    pinnedFeatures = [];
+function deactivatePlace() {
+    if (isLocked) return; // 鎖定狀態下不因滑鼠移開而取消
     clearHighlight();
-    const line = document.getElementById("connection-line");
-    const dot = document.getElementById("connection-dot");
-    line.style.display = "none";
-    dot.style.display = "none";
+    clearConnectionLine();
 }
 
-/* 自動掃描並將文章中出現的地名轉換為互動標籤 */
+/* 點擊論文區空白處解鎖監聽 */
+document.getElementById("story").addEventListener("click", function(e) {
+    // 如果點擊的不是地名標籤（即點到空白處），且目前處於鎖定狀態，則解鎖
+    if (isLocked && !e.target.closest(".map-place")) {
+        unlockAll();
+    }
+});
+
 function findPlaceOccurrences() {
     const story = document.querySelector(".paper-body");
     if (!story) return;
@@ -594,30 +636,31 @@ function findPlaceOccurrences() {
                 span.className = "map-place";
                 span.textContent = text.substring(match.start, match.end);
 
-                // 滑鼠移入暫時預覽（若沒有被釘選時）
                 span.addEventListener("mouseenter", function() {
-                    if (!pinnedSpan) {
-                        highlightFeatures(matchedFeatures);
-                        updateConnectionLine();
-                    }
+                    if (isLocked) return; // 鎖定中不因 hover 改變
+                    activatePlace(span, match.term, true);
                 });
 
-                // 滑鼠移出取消預覽（若沒有被釘選時）
                 span.addEventListener("mouseleave", function() {
-                    if (!pinnedSpan) {
-                        clearHighlight();
-                        clearConnectionLine();
-                    }
+                    deactivatePlace();
                 });
 
-                // 點擊地名：釘選並鎖定
+                // 點擊地名：觸發鎖定，固定線段與高亮，並凍結論文捲動
                 span.addEventListener("click", function(e) {
-                    e.stopPropagation(); // 防止冒泡觸發文章空白處的點擊清除
-                    pinPlace(span, match.term);
+                    e.stopPropagation(); // 阻止冒泡到 story 空白處解鎖
+                    
+                    isLocked = true;
+                    lockedElement = span;
+                    document.getElementById("story").style.overflowY = "hidden"; // 凍結左側捲動
+
+                    document.querySelectorAll(".map-place").forEach(el => el.classList.remove("locked", "active"));
+                    span.classList.add("locked");
+
                     const info = getFeaturesGroupInfo(matchedFeatures);
                     if (info) {
                         map.flyTo({ center: info.center, zoom: 12, duration: 800 });
                     }
+                    activatePlace(span, match.term, true);
                 });
 
                 fragment.appendChild(span);
@@ -636,14 +679,8 @@ function findPlaceOccurrences() {
     });
 }
 
-// 監聽左側論文區空白處點擊：如果點擊的不是地名標籤，就清除釘選
-document.getElementById("story").addEventListener("click", function(e) {
-    if (!e.target.closest(".map-place")) {
-        clearPin();
-    }
-});
-
 map.on("move", updateConnectionLine);
+document.getElementById("story").addEventListener("scroll", updateConnectionLine);
 window.addEventListener("resize", updateConnectionLine);
 
 map.on("load", async function() {
@@ -681,7 +718,6 @@ map.on("load", async function() {
         map.addSource("semi-source", { type: "geojson", data: semiData });
         map.addSource("remove-source", { type: "geojson", data: removeData });
 
-        // 圖層建立
         map.addLayer({
             id: "keep-layer",
             type: "fill",
@@ -736,41 +772,37 @@ map.on("load", async function() {
             layout: { visibility: "none" }
         });
 
-        // 讓地圖上的圖層點擊時可以彈出 Popup 顯示該 polygon 屬性
+        // 綁定地圖上 Polygon 的點擊事件，彈出詳細資料方框
         const clickableLayers = ["keep-layer", "semi-layer", "remove-layer", "place-highlight"];
-        
-        clickableLayers.forEach(layerId => {
-            map.on("mouseenter", layerId, () => {
-                map.getCanvas().style.cursor = "pointer";
-            });
-            map.on("mouseleave", layerId, () => {
-                map.getCanvas().style.cursor = "";
-            });
+        map.on("click", function(e) {
+            const features = map.queryRenderedFeatures(e.point, { layers: clickableLayers });
+            if (features.length === 0) return;
+
+            const feature = features[0];
+            const props = feature.properties;
+            const placeName = getGeoPlaceName(feature) || "未命名區塊";
+
+            let htmlContent = `<div style="max-height: 200px; overflow-y: auto;">
+                <h3 style="margin: 0 0 8px 0; color: #b54a35; font-size: 16px;">${placeName}</h3>
+                <table style="font-size: 13px; width: 100%; border-collapse: collapse;">`;
+            
+            for (const key in props) {
+                if (key.startsWith("__")) continue;
+                htmlContent += `<tr style="border-bottom: 1px solid #eee;">
+                    <strong style="color: #555;">${key}</strong>: ${props[key]}
+                </tr><br>`;
+            }
+            htmlContent += `</table></div>`;
+
+            activePopup.setLngLat(e.lngLat)
+                       .setHTML(htmlContent)
+                       .addTo(map);
         });
 
-        map.on("click", (e) => {
-            const features = map.queryRenderedFeatures(e.point, {
-                layers: clickableLayers.filter(l => map.getLayer(l))
-            });
-
-            if (features.length > 0) {
-                const feature = features[0];
-                const props = feature.properties;
-
-                let htmlContent = `<div style="font-family:'Microsoft JhengHei',sans-serif; font-size:13px; line-height:1.6; max-width:220px; max-height:250px; overflow-y:auto;">`;
-                htmlContent += `<b style="color:#b54a35; font-size:14px;">多邊形屬性資料</b><hr style="margin:4px 0; border:none; border-top:1px solid #ddd;">`;
-                
-                for (const key in props) {
-                    if (key.startsWith("__")) continue; // 略過內部 ID
-                    htmlContent += `<b>${key}:</b> ${props[key]}<br>`;
-                }
-                htmlContent += `</div>`;
-
-                new maplibregl.Popup()
-                    .setLngLat(e.lngLat)
-                    .setHTML(htmlContent)
-                    .addTo(map);
-            }
+        // 滑鼠移到圖層上時改變游標指示可點擊
+        clickableLayers.forEach(layerId => {
+            map.on("mouseenter", layerId, () => { map.getCanvas().style.cursor = "pointer"; });
+            map.on("mouseleave", layerId, () => { map.getCanvas().style.cursor = ""; });
         });
 
         document.getElementById("loading").classList.add("hidden");
