@@ -85,10 +85,17 @@ body {
     border-radius: 3px;
 }
 
-.map-place:hover, .map-place.active {
-    background: rgba(255, 0, 85, 0.8);
+.map-place:hover {
+    background: rgba(255, 0, 85, 0.5);
+    color: #ffffff;
+}
+
+/* 當被點擊釘選時的樣式 */
+.map-place.pinned {
+    background: rgba(255, 0, 85, 0.9);
     color: #ffffff;
     font-weight: bold;
+    border-bottom: 2px solid #ffffff;
 }
 
 /* 右側地圖 */
@@ -296,7 +303,8 @@ const DATA_FILES = {
 
 let placeFeatures = [];
 let activeFeatures = [];
-let activeElement = null;
+let pinnedSpan = null;       // 當前被釘選的文字 DOM 元素
+let pinnedFeatures = [];     // 當前被釘選的圖層 features
 
 async function loadJSON(url) {
     const response = await fetch(url, { cache: "no-cache" });
@@ -306,7 +314,6 @@ async function loadJSON(url) {
     return await response.json();
 }
 
-/* 核心清理與正規化：移除引號、括號與空白，轉成純淨字串 */
 function cleanString(str) {
     if (!str) return "";
     return String(str)
@@ -316,7 +323,6 @@ function cleanString(str) {
         .trim();
 }
 
-/* 取得 GeoJSON 內指定的「地名」欄位 */
 function getGeoPlaceName(feature) {
     if (!feature || !feature.properties) return "";
     const p = feature.properties;
@@ -331,18 +337,11 @@ function getGeoPlaceName(feature) {
     return "";
 }
 
-/* 智慧嚴謹配對：確保文字與 GeoJSON 地名確實互為包含或吻合 */
 function isMatch(textTerm, geoName) {
     const cleanText = cleanString(textTerm);
     const cleanGeo = cleanString(geoName);
     if (!cleanText || !cleanGeo) return false;
-
-    // 彼此包含（例如內文有 Chiyokakurai，地圖有 Chiyokakurai）
-    if (cleanGeo === cleanText || cleanGeo.includes(cleanText) || cleanText.includes(cleanGeo)) {
-        return true;
-    }
-
-    return false;
+    return (cleanGeo === cleanText || cleanGeo.includes(cleanText) || cleanText.includes(cleanGeo));
 }
 
 let geoNameMap = [];
@@ -358,7 +357,6 @@ function buildPlaceIndex() {
     }).filter(item => item.rawName !== "");
 }
 
-/* 找出所有符合該文字片段的地圖 Features */
 function findMatchingFeatures(textTerm) {
     const matched = [];
     geoNameMap.forEach(item => {
@@ -369,7 +367,6 @@ function findMatchingFeatures(textTerm) {
     return matched;
 }
 
-/* 計算多個 Features 的綜合中心點 */
 function getFeaturesGroupInfo(features) {
     if (!features || features.length === 0) return null;
     const points = [];
@@ -399,15 +396,12 @@ function getFeaturesGroupInfo(features) {
     };
 }
 
-/* 高亮所有對應的多邊形（修正過濾器語法，確保只有對應的亮起） */
 function highlightFeatures(features) {
     if (!features || features.length === 0) {
         clearHighlight();
         return;
     }
     const ids = features.map(f => f.properties.__feature_id__);
-    
-    // 修正：使用 ["literal", ids] 確保 MapLibre 過濾運算式正確運作
     const filterExpr = ["in", ["get", "__feature_id__"], ["literal", ids]];
 
     if (map.getLayer("place-highlight")) {
@@ -433,15 +427,22 @@ function clearHighlight() {
 
 /* 更新連接虛線 */
 function updateConnectionLine() {
-    if (!activeFeatures || activeFeatures.length === 0 || !activeElement) return;
+    if (!activeFeatures || activeFeatures.length === 0) return;
 
     const info = getFeaturesGroupInfo(activeFeatures);
     if (!info) return;
 
+    // 如果沒有被釘選的元素（例如純滑鼠懸停），找當前 hover 的元素；否則用 pinnedSpan
+    const targetElement = pinnedSpan || document.querySelector(".map-place:hover");
+    if (!targetElement) {
+        clearConnectionLine();
+        return;
+    }
+
     const mapPoint = map.project(info.center);
     const mapContainer = document.getElementById("map-container");
     const mapRect = mapContainer.getBoundingClientRect();
-    const textRect = activeElement.getBoundingClientRect();
+    const textRect = targetElement.getBoundingClientRect();
 
     const x1 = textRect.right;
     const y1 = textRect.top + textRect.height / 2;
@@ -465,52 +466,40 @@ function updateConnectionLine() {
 }
 
 function clearConnectionLine() {
+    if (pinnedSpan) return; // 如果有釘選就不清除線段
     const line = document.getElementById("connection-line");
     const dot = document.getElementById("connection-dot");
     line.style.display = "none";
     dot.style.display = "none";
-    if (activeElement) {
-        activeElement.classList.remove("active");
-    }
-    activeElement = null;
 }
 
-/* 啟動地名互動 */
-function activatePlace(element, textTerm, autoFly = true) {
+/* 釘選地名邏輯 */
+function pinPlace(span, textTerm) {
+    if (pinnedSpan) {
+        pinnedSpan.classList.remove("pinned");
+    }
+    pinnedSpan = span;
+    if (pinnedSpan) {
+        pinnedSpan.classList.add("pinned");
+    }
     const matched = findMatchingFeatures(textTerm);
-    if (matched.length === 0) return;
-
-    if (activeElement && activeElement !== element) {
-        activeElement.classList.remove("active");
-    }
-    activeElement = element;
-    activeElement.classList.add("active");
-
+    pinnedFeatures = matched;
     highlightFeatures(matched);
-
-    const info = getFeaturesGroupInfo(matched);
-    if (info && autoFly) {
-        const bounds = map.getBounds();
-        const sw = bounds.getSouthWest();
-        const ne = bounds.getNorthEast();
-        const inView = info.center[0] >= sw.lng && info.center[0] <= ne.lng &&
-                       info.center[1] >= sw.lat && info.center[1] <= ne.lat;
-
-        if (!inView) {
-            map.easeTo({
-                center: info.center,
-                duration: 500,
-                essential: true
-            });
-        }
-    }
-
     updateConnectionLine();
 }
 
-function deactivatePlace() {
+/* 清除釘選 */
+function clearPin() {
+    if (pinnedSpan) {
+        pinnedSpan.classList.remove("pinned");
+    }
+    pinnedSpan = null;
+    pinnedFeatures = [];
     clearHighlight();
-    clearConnectionLine();
+    const line = document.getElementById("connection-line");
+    const dot = document.getElementById("connection-dot");
+    line.style.display = "none";
+    dot.style.display = "none";
 }
 
 /* 自動掃描並將文章中出現的地名轉換為互動標籤 */
@@ -605,21 +594,30 @@ function findPlaceOccurrences() {
                 span.className = "map-place";
                 span.textContent = text.substring(match.start, match.end);
 
+                // 滑鼠移入暫時預覽（若沒有被釘選時）
                 span.addEventListener("mouseenter", function() {
-                    activatePlace(span, match.term, true);
+                    if (!pinnedSpan) {
+                        highlightFeatures(matchedFeatures);
+                        updateConnectionLine();
+                    }
                 });
 
+                // 滑鼠移出取消預覽（若沒有被釘選時）
                 span.addEventListener("mouseleave", function() {
-                    deactivatePlace();
+                    if (!pinnedSpan) {
+                        clearHighlight();
+                        clearConnectionLine();
+                    }
                 });
 
+                // 點擊地名：釘選並鎖定
                 span.addEventListener("click", function(e) {
-                    e.stopPropagation();
+                    e.stopPropagation(); // 防止冒泡觸發文章空白處的點擊清除
+                    pinPlace(span, match.term);
                     const info = getFeaturesGroupInfo(matchedFeatures);
                     if (info) {
                         map.flyTo({ center: info.center, zoom: 12, duration: 800 });
                     }
-                    activatePlace(span, match.term, true);
                 });
 
                 fragment.appendChild(span);
@@ -638,8 +636,14 @@ function findPlaceOccurrences() {
     });
 }
 
+// 監聽左側論文區空白處點擊：如果點擊的不是地名標籤，就清除釘選
+document.getElementById("story").addEventListener("click", function(e) {
+    if (!e.target.closest(".map-place")) {
+        clearPin();
+    }
+});
+
 map.on("move", updateConnectionLine);
-document.getElementById("story").addEventListener("scroll", updateConnectionLine);
 window.addEventListener("resize", updateConnectionLine);
 
 map.on("load", async function() {
@@ -677,7 +681,7 @@ map.on("load", async function() {
         map.addSource("semi-source", { type: "geojson", data: semiData });
         map.addSource("remove-source", { type: "geojson", data: removeData });
 
-        // 要存置圖層 (綠)
+        // 圖層建立
         map.addLayer({
             id: "keep-layer",
             type: "fill",
@@ -691,7 +695,6 @@ map.on("load", async function() {
             paint: { "line-color": "#174d22", "line-width": 1.5 }
         });
 
-        // 準要存置圖層 (黃)
         map.addLayer({
             id: "semi-layer",
             type: "fill",
@@ -705,7 +708,6 @@ map.on("load", async function() {
             paint: { "line-color": "#c77800", "line-width": 1.5 }
         });
 
-        // 不要存置圖層 (紅)
         map.addLayer({
             id: "remove-layer",
             type: "fill",
@@ -719,7 +721,6 @@ map.on("load", async function() {
             paint: { "line-color": "#b71c1c", "line-width": 1.5 }
         });
 
-        // 懸停高亮圖層（預設不顯示，只有滑鼠碰到對應地名時才透過 filter 精準顯示對應的 Polygon）
         map.addLayer({
             id: "place-highlight",
             type: "fill",
@@ -733,6 +734,43 @@ map.on("load", async function() {
             source: "all-places-source",
             paint: { "line-color": "#ffff00", "line-width": 4 },
             layout: { visibility: "none" }
+        });
+
+        // 讓地圖上的圖層點擊時可以彈出 Popup 顯示該 polygon 屬性
+        const clickableLayers = ["keep-layer", "semi-layer", "remove-layer", "place-highlight"];
+        
+        clickableLayers.forEach(layerId => {
+            map.on("mouseenter", layerId, () => {
+                map.getCanvas().style.cursor = "pointer";
+            });
+            map.on("mouseleave", layerId, () => {
+                map.getCanvas().style.cursor = "";
+            });
+        });
+
+        map.on("click", (e) => {
+            const features = map.queryRenderedFeatures(e.point, {
+                layers: clickableLayers.filter(l => map.getLayer(l))
+            });
+
+            if (features.length > 0) {
+                const feature = features[0];
+                const props = feature.properties;
+
+                let htmlContent = `<div style="font-family:'Microsoft JhengHei',sans-serif; font-size:13px; line-height:1.6; max-width:220px; max-height:250px; overflow-y:auto;">`;
+                htmlContent += `<b style="color:#b54a35; font-size:14px;">多邊形屬性資料</b><hr style="margin:4px 0; border:none; border-top:1px solid #ddd;">`;
+                
+                for (const key in props) {
+                    if (key.startsWith("__")) continue; // 略過內部 ID
+                    htmlContent += `<b>${key}:</b> ${props[key]}<br>`;
+                }
+                htmlContent += `</div>`;
+
+                new maplibregl.Popup()
+                    .setLngLat(e.lngLat)
+                    .setHTML(htmlContent)
+                    .addTo(map);
+            }
         });
 
         document.getElementById("loading").classList.add("hidden");
