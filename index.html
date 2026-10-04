@@ -1,94 +1,820 @@
+```html
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="utf-8">
     <title>大武林野調查地圖</title>
-    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
-    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
-    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <!-- MapLibre -->
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"
+    />
+
+    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+
     <style>
-        body { margin: 0; padding: 0; display: flex; }
-        #sidebar { width: 40%; height: 100vh; overflow-y: auto; padding: 20px; box-sizing: border-box; }
-        #map { width: 60%; height: 100vh; }
-        .card { margin-bottom: 300px; padding: 20px; background: #f9f9f9; border-radius: 8px; cursor: pointer; }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family:
+                "PingFang TC",
+                "Microsoft JhengHei",
+                sans-serif;
+        }
+
+        #container {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+        }
+
+        /* =========================
+           左側文章
+        ========================= */
+
+        #sidebar {
+            width: 40%;
+            height: 100vh;
+            overflow-y: auto;
+            padding: 40px 35px;
+            background: #faf8f3;
+        }
+
+        .card {
+            margin-bottom: 300px;
+            padding: 28px;
+
+            background: rgba(255,255,255,0.95);
+
+            border-radius: 10px;
+
+            box-shadow:
+                0 3px 15px rgba(0,0,0,0.08);
+
+            cursor: pointer;
+        }
+
+        .card h2 {
+            margin-top: 0;
+            color: #263a29;
+        }
+
+        .card p {
+            line-height: 2;
+        }
+
+        /* =========================
+           右側地圖
+        ========================= */
+
+        #map {
+            width: 60%;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* 地圖右上角資訊 */
+        #map-title {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 5;
+
+            padding: 8px 13px;
+
+            background: rgba(255,255,255,0.92);
+
+            border-radius: 5px;
+
+            font-size: 14px;
+            font-weight: bold;
+
+            box-shadow:
+                0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        /* 載入提示 */
+        #loading {
+            position: absolute;
+
+            top: 50%;
+            left: 50%;
+
+            transform: translate(-50%, -50%);
+
+            z-index: 10;
+
+            padding: 15px 25px;
+
+            background: rgba(255,255,255,0.95);
+
+            border-radius: 8px;
+
+            box-shadow:
+                0 3px 15px rgba(0,0,0,0.2);
+
+            font-size: 15px;
+        }
+
+        #loading.hidden {
+            display: none;
+        }
+
+        /* 錯誤訊息 */
+        #error {
+            position: absolute;
+
+            left: 20px;
+            right: 20px;
+            bottom: 20px;
+
+            z-index: 20;
+
+            display: none;
+
+            padding: 15px;
+
+            background: rgba(150,0,0,0.95);
+
+            color: white;
+
+            border-radius: 8px;
+
+            font-size: 14px;
+
+            line-height: 1.6;
+        }
+
+        /* =========================
+           手機
+        ========================= */
+
+        @media (max-width: 768px) {
+
+            #container {
+                flex-direction: column;
+            }
+
+            #sidebar {
+                width: 100%;
+                height: 50vh;
+            }
+
+            #map {
+                width: 100%;
+                height: 50vh;
+            }
+        }
+
     </style>
 </head>
+
 <body>
 
-<div id="sidebar">
-    <div class="card" onclick="flyToDawu()">
-        <h2>壹、土地的狀況</h2>
-        <p>點擊此處飛往大武地區...</p>
+<div id="container">
+
+    <!-- =========================
+         左側文章
+    ========================= -->
+
+    <div id="sidebar">
+
+        <div class="card" id="dawu-card">
+
+            <h2>壹、土地的狀況</h2>
+
+            <p>
+                大武林野調查區的土地狀況。
+            </p>
+
+            <p>
+                讀者閱讀此段文字時，
+                右側地圖將定位至大武地區。
+            </p>
+
+        </div>
+
     </div>
+
+
+    <!-- =========================
+         右側地圖
+    ========================= -->
+
+    <div id="map">
+
+        <div id="map-title">
+            大武林野調查地圖
+        </div>
+
+        <div id="loading">
+            正在載入地圖資料……
+        </div>
+
+        <div id="error"></div>
+
+    </div>
+
 </div>
 
-<div id="map"></div>
 
 <script>
-    mapboxgl.accessToken = '您的_MAPBOX_ACCESS_TOKEN'; // 請替換為您的 Token
 
-    const map = new mapboxgl.Map({
-        container: 'map',
-        style: 'mapbox://styles/mapbox/outdoors-v12',
-        center: [120.887, 22.352], // 大武地區經緯度 [lng, lat]
-        zoom: 11
+    /* =========================================================
+       1. MapLibre 地圖
+       ========================================================= */
+
+    const map = new maplibregl.Map({
+
+        container: "map",
+
+        /*
+         * 不使用 Mapbox。
+         * 因此不需要 access token。
+         */
+
+        style: {
+
+            version: 8,
+
+            sources: {
+
+                "osm": {
+
+                    type: "raster",
+
+                    tiles: [
+                        "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    ],
+
+                    tileSize: 256,
+
+                    attribution:
+                        "© OpenStreetMap contributors"
+
+                }
+
+            },
+
+            layers: [
+
+                {
+
+                    id: "osm",
+
+                    type: "raster",
+
+                    source: "osm"
+
+                }
+
+            ]
+
+        },
+
+        center: [120.887, 22.352],
+
+        zoom: 11,
+
+        pitch: 0,
+
+        bearing: 0
+
     });
 
-    map.on('load', () => {
-        // 1. 載入「大武要存置圖層」
-        map.addSource('keep-source', {
-            type: 'geojson',
-            data: './大武要存置圖層.geojson'
-        });
-        map.addLayer({
-            id: 'keep-layer',
-            type: 'fill',
-            source: 'keep-source',
-            paint: {
-                'fill-color': '#2e7d32', // 綠色
-                'fill-opacity': 0.5
-            }
+
+    /* =========================================================
+       2. GeoJSON 路徑
+       ========================================================= */
+
+    const DATA = {
+
+        keep:
+            "./大武要存置圖層.geojson",
+
+        semiKeep:
+            "./大武準要存置圖層.geojson",
+
+        remove:
+            "./大武不要存置圖層.geojson"
+
+    };
+
+
+    /* =========================================================
+       3. 載入 GeoJSON
+       ========================================================= */
+
+    async function loadGeoJSON(url) {
+
+        const response = await fetch(url, {
+            cache: "no-cache"
         });
 
-        // 2. 載入「大武準要存置圖層」
-        map.addSource('semi-keep-source', {
-            type: 'geojson',
-            data: './大武準要存置圖層.geojson'
-        });
-        map.addLayer({
-            id: 'semi-keep-layer',
-            type: 'fill',
-            source: 'semi-keep-source',
-            paint: {
-                'fill-color': '#f9a825', // 黃色
-                'fill-opacity': 0.5
-            }
-        });
+        if (!response.ok) {
 
-        // 3. 載入「大武不要存置圖層」
-        map.addSource('remove-source', {
-            type: 'geojson',
-            data: './大武不要存置圖層.geojson'
-        });
-        map.addLayer({
-            id: 'remove-layer',
-            type: 'fill',
-            source: 'remove-source',
-            paint: {
-                'fill-color': '#c62828', // 紅色
-                'fill-opacity': 0.5
-            }
-        });
-    });
+            throw new Error(
+                "無法載入：" +
+                url +
+                " HTTP " +
+                response.status
+            );
 
-    // 定位飛往函數
-    function flyToDawu() {
-        map.flyTo({
-            center: [120.887, 22.352],
-            zoom: 12,
-            essential: true
-        });
+        }
+
+        const data = await response.json();
+
+        if (!data ||
+            data.type !== "FeatureCollection") {
+
+            throw new Error(
+                url +
+                " 不是有效的 GeoJSON FeatureCollection"
+            );
+
+        }
+
+        return data;
+
     }
+
+
+    /* =========================================================
+       4. 計算 GeoJSON Bounds
+       ========================================================= */
+
+    function extendBoundsFromCoordinates(
+        bounds,
+        coordinates
+    ) {
+
+        if (
+            typeof coordinates[0] === "number"
+        ) {
+
+            bounds.extend(coordinates);
+
+            return;
+        }
+
+        for (
+            const child of coordinates
+        ) {
+
+            extendBoundsFromCoordinates(
+                bounds,
+                child
+            );
+
+        }
+
+    }
+
+
+    function getGeoJSONBounds(
+        geojson
+    ) {
+
+        const bounds =
+            new maplibregl.LngLatBounds();
+
+        for (
+            const feature
+            of geojson.features
+        ) {
+
+            if (
+                feature.geometry &&
+                feature.geometry.coordinates
+            ) {
+
+                extendBoundsFromCoordinates(
+                    bounds,
+                    feature.geometry.coordinates
+                );
+
+            }
+
+        }
+
+        return bounds;
+
+    }
+
+
+    /* =========================================================
+       5. 地圖載入
+       ========================================================= */
+
+    map.on("load", async function () {
+
+        try {
+
+            /*
+             * 同時載入三個 GeoJSON
+             */
+
+            const [
+                keepData,
+                semiKeepData,
+                removeData
+            ] = await Promise.all([
+
+                loadGeoJSON(
+                    DATA.keep
+                ),
+
+                loadGeoJSON(
+                    DATA.semiKeep
+                ),
+
+                loadGeoJSON(
+                    DATA.remove
+                )
+
+            ]);
+
+
+            /* =================================================
+               6. 加入 Source
+               ================================================= */
+
+            map.addSource(
+                "keep-source",
+                {
+
+                    type: "geojson",
+
+                    data: keepData
+
+                }
+            );
+
+
+            map.addSource(
+                "semi-keep-source",
+                {
+
+                    type: "geojson",
+
+                    data: semiKeepData
+
+                }
+            );
+
+
+            map.addSource(
+                "remove-source",
+                {
+
+                    type: "geojson",
+
+                    data: removeData
+
+                }
+            );
+
+
+            /* =================================================
+               7. 要存置
+               ================================================= */
+
+            map.addLayer({
+
+                id: "keep-layer",
+
+                type: "fill",
+
+                source: "keep-source",
+
+                paint: {
+
+                    "fill-color":
+                        "#2e7d32",
+
+                    "fill-opacity":
+                        0.55
+
+                }
+
+            });
+
+
+            map.addLayer({
+
+                id: "keep-outline",
+
+                type: "line",
+
+                source: "keep-source",
+
+                paint: {
+
+                    "line-color":
+                        "#145214",
+
+                    "line-width":
+                        1.5,
+
+                    "line-opacity":
+                        0.9
+
+                }
+
+            });
+
+
+            /* =================================================
+               8. 準要存置
+               ================================================= */
+
+            map.addLayer({
+
+                id: "semi-keep-layer",
+
+                type: "fill",
+
+                source: "semi-keep-source",
+
+                paint: {
+
+                    "fill-color":
+                        "#f9a825",
+
+                    "fill-opacity":
+                        0.55
+
+                }
+
+            });
+
+
+            map.addLayer({
+
+                id: "semi-keep-outline",
+
+                type: "line",
+
+                source: "semi-keep-source",
+
+                paint: {
+
+                    "line-color":
+                        "#8a6500",
+
+                    "line-width":
+                        1.5,
+
+                    "line-opacity":
+                        0.9
+
+                }
+
+            });
+
+
+            /* =================================================
+               9. 不要存置
+               ================================================= */
+
+            map.addLayer({
+
+                id: "remove-layer",
+
+                type: "fill",
+
+                source: "remove-source",
+
+                paint: {
+
+                    "fill-color":
+                        "#c62828",
+
+                    "fill-opacity":
+                        0.55
+
+                }
+
+            });
+
+
+            map.addLayer({
+
+                id: "remove-outline",
+
+                type: "line",
+
+                source: "remove-source",
+
+                paint: {
+
+                    "line-color":
+                        "#7b0000",
+
+                    "line-width":
+                        1.5,
+
+                    "line-opacity":
+                        0.9
+
+                }
+
+            });
+
+
+            /* =================================================
+               10. 自動計算三個圖層的共同範圍
+               ================================================= */
+
+            const bounds =
+                getGeoJSONBounds(
+                    keepData
+                );
+
+            const bounds2 =
+                getGeoJSONBounds(
+                    semiKeepData
+                );
+
+            const bounds3 =
+                getGeoJSONBounds(
+                    removeData
+                );
+
+
+            /*
+             * 把三個範圍合併
+             */
+
+            bounds.extend(
+                bounds2.getSouthWest()
+            );
+
+            bounds.extend(
+                bounds2.getNorthEast()
+            );
+
+            bounds.extend(
+                bounds3.getSouthWest()
+            );
+
+            bounds.extend(
+                bounds3.getNorthEast()
+            );
+
+
+            /*
+             * 自動縮放至大武資料實際範圍
+             */
+
+            map.fitBounds(
+                bounds,
+                {
+
+                    padding: 70,
+
+                    duration: 0,
+
+                    maxZoom: 12
+
+                }
+            );
+
+
+            /* =================================================
+               11. 完成
+               ================================================= */
+
+            document
+                .getElementById("loading")
+                .classList
+                .add("hidden");
+
+
+            console.log(
+                "大武 GeoJSON 載入完成"
+            );
+
+            console.log(
+                "要存置：",
+                keepData.features.length,
+                "筆"
+            );
+
+            console.log(
+                "準要存置：",
+                semiKeepData.features.length,
+                "筆"
+            );
+
+            console.log(
+                "不要存置：",
+                removeData.features.length,
+                "筆"
+            );
+
+        }
+
+        catch (error) {
+
+            console.error(
+                "GeoJSON 載入失敗：",
+                error
+            );
+
+
+            const errorBox =
+                document.getElementById(
+                    "error"
+                );
+
+
+            errorBox.style.display =
+                "block";
+
+
+            errorBox.innerHTML =
+                "<strong>地圖資料載入失敗</strong><br>" +
+                error.message +
+                "<br><br>" +
+                "請確認 index.html 與三個 GeoJSON 位於同一個 GitHub Pages 目錄。";
+
+        }
+
+    });
+
+
+    /* =========================================================
+       12. 點擊文章 → 飛往大武
+       ========================================================= */
+
+    function flyToDawu() {
+
+        map.flyTo({
+
+            center: [
+                120.887,
+                22.352
+            ],
+
+            zoom: 12,
+
+            pitch: 0,
+
+            bearing: 0,
+
+            duration: 1800,
+
+            essential: true
+
+        });
+
+    }
+
+
+    /*
+     * 點擊文章區塊
+     */
+
+    document
+        .getElementById("dawu-card")
+        .addEventListener(
+            "click",
+            flyToDawu
+        );
+
+
+    /* =========================================================
+       13. 地圖錯誤監聽
+       ========================================================= */
+
+    map.on(
+        "error",
+        function (event) {
+
+            console.error(
+                "MapLibre error:",
+                event
+            );
+
+        }
+    );
+
 </script>
+
 </body>
 </html>
+```
