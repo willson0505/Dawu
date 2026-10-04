@@ -1,44 +1,33 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>大武林野調查區</title>
 
-<title>大武林野調查｜互動故事地圖</title>
-
-<script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
-<link
-    href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css"
-    rel="stylesheet"
-/>
+<!-- MapLibre GL JS -->
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 
 <style>
 * {
     box-sizing: border-box;
 }
 
-html,
-body {
+html, body {
     margin: 0;
     padding: 0;
+    width: 100%;
     height: 100%;
 }
 
 body {
-    font-family:
-        "Noto Serif TC",
-        "PingFang TC",
-        "Microsoft JhengHei",
-        serif;
-
+    font-family: "Noto Serif TC", "PingFang TC", "Microsoft JhengHei", serif;
     color: #292929;
-    background: #f7f5f0;
+    background: #f7f4ee;
 }
-
-
-/* =========================================================
-   整體左右雙欄
-========================================================= */
 
 #container {
     display: flex;
@@ -46,34 +35,27 @@ body {
     min-height: 100vh;
 }
 
-
-/* =========================================================
-   左側文章
-========================================================= */
-
+/* 左側文章 */
 #story {
-    width: 45%;
-    min-height: 100vh;
-    padding: 70px 55px;
-    background: #f7f5f0;
-    position: relative;
-    z-index: 2;
+    width: 42%;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 70px 55px 150px 55px;
+    background: #f8f5ef;
 }
 
-#story h1 {
+.main-title {
+    margin: 0 0 12px 0;
     font-size: 30px;
-    line-height: 1.6;
-    margin: 0 0 10px 0;
+    line-height: 1.5;
+    color: #24352a;
 }
 
 .author {
+    margin-bottom: 55px;
     color: #666;
-    margin-bottom: 45px;
-    font-size: 18px;
+    font-size: 17px;
 }
-
-
-/* 不替文章亂切段 */
 
 .paper-body {
     font-size: 18px;
@@ -81,54 +63,41 @@ body {
 }
 
 .paper-body p {
-    margin:
-        0
-        0
-        30px
-        0;
-
+    margin: 0 0 1.8em 0;
     text-align: justify;
     text-indent: 2em;
 }
 
+.paper-heading {
+    margin-top: 60px;
+    margin-bottom: 25px;
+    font-size: 25px;
+    font-weight: bold;
+    color: #273a2b;
+}
 
-/* =========================================================
-   地名
-========================================================= */
-
-.place-link {
+/* 地名文字標籤 */
+.map-place {
     cursor: pointer;
-
-    /*
-       預設不畫底線。
-       只有滑鼠碰到時才出現。
-    */
-
-    border-bottom: 2px solid transparent;
-
-    transition:
-        color 0.2s ease,
-        border-color 0.2s ease;
+    background: rgba(220, 185, 60, 0.25);
+    transition: all 0.2s ease;
+    border-bottom: 2px dashed #b54a35;
+    padding: 0 2px;
+    border-radius: 3px;
 }
 
-.place-link:hover {
-    color: #9b3d20;
-    border-bottom-color: #9b3d20;
+.map-place:hover, .map-place.active {
+    background: rgba(255, 0, 85, 0.8);
+    color: #ffffff;
+    font-weight: bold;
 }
 
-
-/* =========================================================
-   右側地圖
-========================================================= */
-
+/* 右側地圖 */
 #map-container {
-    width: 55%;
+    width: 58%;
     height: 100vh;
-
     position: sticky;
     top: 0;
-
-    background: #ddd;
 }
 
 #map {
@@ -136,1337 +105,623 @@ body {
     height: 100%;
 }
 
-
-/* =========================================================
-   地圖右上角目前地名
-========================================================= */
-
-#place-info {
+#map-title {
     position: absolute;
-
-    top: 20px;
-    right: 20px;
-
+    top: 18px;
+    left: 18px;
     z-index: 10;
-
-    max-width: 260px;
-
-    padding: 12px 16px;
-
-    background:
-        rgba(255,255,255,0.94);
-
-    border-radius: 6px;
-
-    box-shadow:
-        0 3px 15px rgba(0,0,0,0.18);
-
-    font-size: 15px;
-
-    opacity: 0;
-
-    pointer-events: none;
-
-    transition:
-        opacity 0.2s ease;
+    padding: 9px 14px;
+    background: rgba(255, 255, 255, 0.93);
+    border-radius: 5px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+    font-family: "Microsoft JhengHei", sans-serif;
+    font-size: 14px;
+    font-weight: bold;
 }
-
-#place-info.visible {
-    opacity: 1;
-}
-
-
-/* =========================================================
-   SVG 連線
-========================================================= */
-
-#connection-layer {
-    position: fixed;
-
-    top: 0;
-    left: 0;
-
-    width: 100vw;
-    height: 100vh;
-
-    pointer-events: none;
-
-    z-index: 20;
-}
-
-#connection-line {
-    fill: none;
-
-    stroke: #9b3d20;
-
-    stroke-width: 2.5;
-
-    stroke-linecap: round;
-
-    filter:
-        drop-shadow(
-            0 1px 2px
-            rgba(0,0,0,0.25)
-        );
-
-    opacity: 0;
-
-    transition:
-        opacity 0.15s ease;
-}
-
-#connection-dot {
-    fill: #9b3d20;
-
-    opacity: 0;
-
-    transition:
-        opacity 0.15s ease;
-}
-
-
-/* =========================================================
-   地圖載入提示
-========================================================= */
 
 #loading {
     position: absolute;
-
     top: 50%;
     left: 50%;
-
-    transform:
-        translate(-50%, -50%);
-
-    z-index: 30;
-
+    transform: translate(-50%,-50%);
+    z-index: 20;
     padding: 15px 25px;
-
-    background:
-        rgba(255,255,255,0.95);
-
-    border-radius: 6px;
-
-    box-shadow:
-        0 4px 15px rgba(0,0,0,0.15);
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 8px;
+    box-shadow: 0 3px 15px rgba(0,0,0,0.2);
 }
 
+#loading.hidden {
+    display: none;
+}
 
-/* =========================================================
-   手機
-========================================================= */
+#error {
+    display: none;
+    position: absolute;
+    left: 20px;
+    right: 20px;
+    bottom: 20px;
+    z-index: 30;
+    padding: 15px;
+    background: rgba(130, 0, 0, 0.95);
+    color: white;
+    border-radius: 7px;
+}
+
+/* 左右動態指標線 */
+#connection-svg {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 9999;
+}
+
+.connection-line {
+    stroke: #ff0055;
+    stroke-width: 3;
+    fill: none;
+    stroke-linecap: round;
+    stroke-dasharray: 6, 4;
+    opacity: 0.95;
+}
+
+.connection-dot {
+    fill: #ff0055;
+    stroke: #ffffff;
+    stroke-width: 2;
+}
 
 @media (max-width: 900px) {
-
     #container {
-        display: block;
+        flex-direction: column;
     }
-
     #story {
         width: 100%;
-        padding: 40px 25px;
+        height: 60vh;
+        padding: 35px 25px 100px;
     }
-
     #map-container {
         width: 100%;
-        height: 55vh;
-
+        height: 40vh;
         position: sticky;
         bottom: 0;
-        top: auto;
-    }
-
-    #connection-layer {
-        display: none;
     }
 }
 </style>
 </head>
 
-
 <body>
 
+<svg id="connection-svg" xmlns="http://www.w3.org/2000/svg">
+    <line id="connection-line" class="connection-line" x1="0" y1="0" x2="0" y2="0" style="display:none;" />
+    <circle id="connection-dot" class="connection-dot" cx="0" cy="0" r="7" style="display:none;" />
+</svg>
 
 <div id="container">
 
+<main id="story">
 
-<!-- =====================================================
-     左側：論文
-===================================================== -->
-
-<article id="story">
-
-<h1>大武林野調查</h1>
-
-<div class="author">
-    森林計畫事業區分調查史料
-</div>
-
+<h1 class="main-title">大武調查區概覽</h1>
+<div class="author"></div>
 
 <div class="paper-body">
 
-
-<!--
-===========================================================
-注意：
-
-這裡保留你原本論文全文的位置。
-
-把你的「完整論文全文」直接貼進來。
-不要自行切割成新的 story step。
-===========================================================
--->
-
-
 <p>
-大武調查區的森林計畫事業區分調查，涉及大武地區山林土地的分類、蕃人保留地以及相關土地利用情形。
-在相關史料中，可以看到當時官方對於土地、林野以及蕃人生活空間的調查。
+本調查區包含臺東廳大武支廳內的國有林野，面積為 83,612 公頃。此區域原為第二次森林計畫地區的預定地，但已趁森林治水調查之便，實施區分調查。依此調查，規劃了蕃人生活用的區域，且此調查具備保護林野的取締效果；另一方面，亦釐清了第二次森林計畫裡的營林用要存置林野面積。由此可見此次調查的必要性。
 </p>
 
-
 <p>
-在調查資料中，可以看到不同的準要存置林野土地。
-其中部分土地與各蕃社的生活空間具有密切關係，例如
-<span
-    class="place-link"
-    data-place="近黃社"
->
-近黃社
-</span>
-等地名。
+關於調查區的邊界：西方及南方通過大武山（海拔 10,665 日尺；3,232 公尺），以脊梁山脈的分水嶺—牡丹溪山（海拔 1,606 日尺；487 公尺）為界，與高雄州相鄰；北方依知本溪，與臺東支廳相接；南方則至海岸。
 </p>
 
+<h2 class="paper-heading">壹、土地的狀況</h2>
 
 <p>
-相關史料同時記錄了不同土地的番號、地名與面積。
-這些資料可以透過地圖進一步理解其空間位置。
+關於林野的狀態、地勢，西方有高峰相連的脊梁山脈分水嶺。山脈的地勢向東漸低，山勢陡峭，其中有大麻溪、蚶子崙溪、大竹高溪、大武溪等諸溪流過，溪邊的山坡地遭溪流嚴重侵蝕：綜觀調查區各地的地勢，調查區南方從北邊起為緩坡，各山峰的山勢由北至南越緩。地質以黏板岩及砂岩為基岩，土壤質地為砂質壤土，地力一般。
 </p>
-
 
 <p>
-例如，
-<span
-    class="place-link"
-    data-place="Botsuketsu社蕃地"
->
-Botsuketsu社蕃地
-</span>
-在準要存置林野資料中具有相應的空間範圍。
+林況方面，原生林約佔全林地面積 7 成，其餘大部分的土地為蕃人開墾地，其中一半以上為叢林。9 成的原生林為闊葉樹的雜木林，但到了大武山附近的高地，有由自然生長的臺灣鐵杉、紅檜而成的針闊葉混合林。接著，就樹木生長情形來看，雖然海岸附近的樹木生長情形不佳，但隨著遠離海岸，情形逐漸變好。
 </p>
 
+<p>
+關於調查區內居民的狀況，此區域原為「パイワン」（Paiwan）族太麻里蕃的根據地，現居此地的蕃人，在行政區有 17 個蕃社、人口有 3,527 人：蕃地上有 43 社、人口有 5,059 人，合計 8,586 人。此外，除少數內地人、本島人外，尚有平地蕃「アミ」（Ami）族 261 人與「パイワン」（Paiwan）族居住於此。行政區及蕃地上的現存蕃社名和人口如下：
+</p>
+
+<p>
+行政區有太麻里、羅打結、鴨子蘭、文里格、猴子蘭、蚶子崙、大武窟、察暗密、打暗打蘭、大武、鴿子籠、大烏萬、拔子洞、獅子獅、大竹高、甘壁壁、大得吉，以上 17 社，人口 3,527 人。
+</p>
+
+<p>
+蕃社有「ルラクシ」（Rurakushi）社、「ビララウ」（Birarau）社、「パウモリ」（Paumori）社、斗里斗里社、「チヨコゾル」（Chiyokozoru）社、近黃社、「ツダカス」（Tsudakasu）社、「トビロウ」（Tobirou）社、那保那保社、「カラタラン」（Karataran）社、「マリドツプ」（Maridotsupu）社、「ポケツ」（Poketsu）社、「カアロワン」（Kaarowan）社、「トロコワン」（Torokowan）社、「パシヨロ」（Pashiyoro）社、「マリプル」（Maripuru）社、「シヨモル」（Shiyomoru）社、讀古梧社、「トコブルイピリ」（Tokoburuipiri）社、「シヤコプ」（Shiyakopu）社、「トコホル」（10Tokohoru）社、姑子崙社、「チヨカクライ」（Chiyokakurai）社、東「テババオ」（Tebabao）社、西「テババオ」（Tebabao）社、「テノコ」（Tenoko）社、「タバカス」（Tabakasu）社、「カクブラン」（Kakuburan）社、「ポリガツト」（Porigatsuto）社、「タリリク」（Taririku）社、「キナバリヤン」（Kinabariyan）社、「クダカス」（Kudakasu）社、「トアバル」（Toabaru）社、「トアカウ」（Toakau）社、「ハイブカイ」（Haibukai）社、「ラリバ」（Rariba）社、「トコトコワン」（Tokotokowan）社、「カケラブチャン」（Kakerabuchiyan）社、大板鹿社、「チヨコプリ」（Chokoburi）社、「チヤチヤガトワン」（Chiyachiyagatowan）社、阿聖衛社、出水坡社，以上 43 社，人口 5,059 人。
+</p>
+
+<h2 class="paper-heading">貳、調查概要與區分成果</h2>
+
+<p>
+本調查區的區分調查班長為伊藤太右衛門技師，調查時間從昭和 5 年 9 月 8 日至 11 月 4 日，調查日數為 58 天，如同前述所記，進行治水調查時，兼施行了區分調查。進行調查時，不只注重在治水國土保安上無窒礙難行之處，亦留意避免造成現居蕃人生活上的威脅，在選定蕃人用保留地上，期望能不留遺憾，且須考量如大武附近的農業適地。區分結果如下表所示。
+</p>
+
+<p>
+針對蕃人用保留地（準要存置林野），高山蕃 8,586 人，加上平地蕃 261 人，合計有 8,847 人，選定土地面積 2,575 公頃。考量土地的好壞，人均所得土地面積為 2 公頃至 3 公頃。一般而言，雖不以平地蕃「アミ」（Ami）族為對象，制定蕃人用保留地的方針，但長久以來此地的「アミ」（Ami）族與「パイワン」（Paiwan）族混居在一起，與牠們度過同樣的生活，加上平地蕃完全沒有私有地，遂依照臺東廳的期望，讓平地蕃比照高山蕃，先選定保留地。
+</p>
+
+<p>
+另外，關於準要存置林野面積 25,100 公頃裡的蕃地蚶子崙 25 公頃，由於溫泉所在地，故認定有必要對之進行公共上的保存與使用，而區分為準要存置林野。
+</p>
 
 </div>
 
-</article>
+</main>
 
-
-
-<!-- =====================================================
-     右側：地圖
-===================================================== -->
-
-<div id="map-container">
-
+<section id="map-container">
+<div id="map-title">大武林野調查地圖</div>
 <div id="map"></div>
-
-<div id="loading">
-    地圖載入中……
-</div>
-
-<div id="place-info">
-    <strong id="place-name"></strong>
-</div>
+<div id="loading">正在載入地圖資料……</div>
+<div id="error"></div>
+</section>
 
 </div>
-
-</div>
-
-
-
-<!-- =====================================================
-     左文 → 右圖連線 SVG
-===================================================== -->
-
-<svg
-    id="connection-layer"
-    xmlns="http://www.w3.org/2000/svg"
->
-
-<path
-    id="connection-line"
-    d=""
-/>
-
-<circle
-    id="connection-dot"
-    cx="0"
-    cy="0"
-    r="6"
-/>
-
-</svg>
-
-
 
 <script>
-
-/* =========================================================
-   Mapbox
-========================================================= */
-
-mapboxgl.accessToken =
-    '您的_MAPBOX_ACCESS_TOKEN';
-
-
-const map =
-    new mapboxgl.Map({
-
-        container: 'map',
-
-        style:
-            'mapbox://styles/mapbox/outdoors-v12',
-
-        center:
-            [120.887, 22.352],
-
-        zoom:
-            10.5,
-
-        pitch:
-            0,
-
-        bearing:
-            0,
-
-        attributionControl:
-            true
-    });
-
-
-/* =========================================================
-   GeoJSON
-========================================================= */
-
-const GEOJSON_URL =
-    'https://raw.githubusercontent.com/willson0505/Dawu/main/%E5%A4%A7%E6%AD%A6%E6%BA%96%E8%A6%81%E5%AD%98%E7%BD%AE%E5%9C%96%E5%B1%A4.geojson';
-
-
-/* =========================================================
-   地名對照表
-
-   左邊論文名稱
-          ↓
-   GeoJSON properties["地名"]
-
-   如果之後發現其他名稱不同，
-   只需要在這裡增加。
-========================================================= */
-
-const placeAlias = {
-
-    "近黃社":
-        "近黃社",
-
-    "Botsuketsu社":
-        "Botsuketsu社蕃地",
-
-    "Botsuketsu社蕃地":
-        "Botsuketsu社蕃地"
-
-};
-
-
-/* =========================================================
-   儲存 GeoJSON
-========================================================= */
-
-let placeFeatures = [];
-
-let activeFeature = null;
-
-let activePlace = null;
-
-
-/* =========================================================
-   地圖初始化
-========================================================= */
-
-map.on('load', async function() {
-
-    try {
-
-        const response =
-            await fetch(GEOJSON_URL);
-
-        if (!response.ok) {
-
-            throw new Error(
-                'GeoJSON HTTP error: ' +
-                response.status
-            );
-
-        }
-
-        const geojson =
-            await response.json();
-
-
-        /*
-         * 確認資料
-         */
-
-        console.log(
-            '大武準要存置圖層：',
-            geojson
-        );
-
-
-        /*
-         * 儲存 Feature
-         */
-
-        placeFeatures =
-            geojson.features || [];
-
-
-        /*
-         * 建立 GeoJSON source
-         */
-
-        map.addSource(
-            'semi-keep-source',
-            {
-                type: 'geojson',
-                data: geojson
+const map = new maplibregl.Map({
+    container: "map",
+    style: {
+        version: 8,
+        sources: {
+            osm: {
+                type: "raster",
+                tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+                tileSize: 256,
+                attribution: "© OpenStreetMap contributors"
             }
-        );
-
-
-        /*
-         * 原始準要存置林野
-         */
-
-        map.addLayer({
-
-            id:
-                'semi-keep-layer',
-
-            type:
-                'fill',
-
-            source:
-                'semi-keep-source',
-
-            paint: {
-
-                'fill-color':
-                    '#f0a500',
-
-                'fill-opacity':
-                    0.35
-            }
-
-        });
-
-
-        /*
-         * 外框
-         */
-
-        map.addLayer({
-
-            id:
-                'semi-keep-outline',
-
-            type:
-                'line',
-
-            source:
-                'semi-keep-source',
-
-            paint: {
-
-                'line-color':
-                    '#9a6414',
-
-                'line-width':
-                    1.2,
-
-                'line-opacity':
-                    0.8
-            }
-
-        });
-
-
-        /*
-         * 高亮 polygon
-         *
-         * 不改變原 GeoJSON。
-         * 使用 filter 顯示目前選取地名。
-         */
-
-        map.addLayer({
-
-            id:
-                'place-highlight',
-
-            type:
-                'line',
-
-            source:
-                'semi-keep-source',
-
-            paint: {
-
-                'line-color':
-                    '#e53935',
-
-                'line-width':
-                    5,
-
-                'line-opacity':
-                    0.95,
-
-                'line-blur':
-                    1.5
-            },
-
-            filter:
-                [
-                    '==',
-                    ['get', '地名'],
-                    ''
-                ]
-
-        });
-
-
-        /*
-         * 地名標籤
-         *
-         * 不使用 popup。
-         */
-
-        map.addLayer({
-
-            id:
-                'place-label',
-
-            type:
-                'symbol',
-
-            source:
-                'semi-keep-source',
-
-            layout: {
-
-                'text-field':
-                    [
-                        'coalesce',
-                        ['get', '地名'],
-                        ''
-                    ],
-
-                'text-size':
-                    13,
-
-                'text-font':
-                    [
-                        'Open Sans Bold',
-                        'Arial Unicode MS Bold'
-                    ],
-
-                'text-anchor':
-                    'center',
-
-                'text-allow-overlap':
-                    false
-
-            },
-
-            paint: {
-
-                'text-color':
-                    '#333',
-
-                'text-halo-color':
-                    '#fff',
-
-                'text-halo-width':
-                    2
-            }
-
-        });
-
-
-        /*
-         * 隱藏載入提示
-         */
-
-        document
-            .getElementById('loading')
-            .style.display =
-            'none';
-
-
-        /*
-         * 開始建立左文地名
-         */
-
-        setupPlaceLinks();
-
-
-    } catch(error) {
-
-        console.error(
-            'GeoJSON 載入失敗：',
-            error
-        );
-
-        document
-            .getElementById('loading')
-            .textContent =
-            'GeoJSON 載入失敗，請檢查檔案路徑。';
-
-    }
-
+        },
+        layers: [
+            { id: "osm", type: "raster", source: "osm" }
+        ]
+    },
+    center: [120.887, 22.352],
+    zoom: 10,
+    pitch: 0,
+    bearing: 0
 });
 
+const DATA_FILES = {
+    keep: "./大武要存置圖層.geojson",
+    semi: "./大武準要存置圖層.geojson",
+    remove: "./大武不要存置圖層.geojson"
+};
 
-/* =========================================================
-   建立左側地名事件
-========================================================= */
+let placeFeatures = [];
+let activeFeature = null;
+let activeElement = null;
 
-function setupPlaceLinks() {
+async function loadJSON(url) {
+    const response = await fetch(url, { cache: "no-cache" });
+    if (!response.ok) {
+        throw new Error("無法載入 " + url + " (" + response.status + ")");
+    }
+    return await response.json();
+}
 
-    const links =
-        document.querySelectorAll(
-            '.place-link'
-        );
+/* 廣義掃描各種可能的 GeoJSON 地名屬性欄位名稱 */
+function getPlaceName(feature) {
+    if (!feature || !feature.properties) return "";
+    const p = feature.properties;
+    const possibleKeys = [
+        "地名", "地名欄位", "名稱", "社名", "蕃社", "蕃社名", "林野名稱", "區劃名稱",
+        "name", "NAME", "Name", "title", "TITLE", "Title", "label", "LABEL", "Label",
+        "Layer", "LAYER", "layer", "Text", "TEXT"
+    ];
+    for (const key of possibleKeys) {
+        if (p[key] !== undefined && p[key] !== null && String(p[key]).trim() !== "") {
+            return String(p[key]).trim();
+        }
+    }
+    for (const key in p) {
+        if (typeof p[key] === "string" && p[key].trim() !== "" && !key.startsWith("_")) {
+            return p[key].trim();
+        }
+    }
+    return "";
+}
 
+function normalizeName(name) {
+    return String(name).replace(/\s+/g, "").trim();
+}
 
-    links.forEach(
-        function(link) {
+function buildPlaceIndex() {
+    const index = new Map();
+    placeFeatures.forEach(feature => {
+        const name = getPlaceName(feature);
+        if (!name) return;
+        const key = normalizeName(name);
+        if (!index.has(key)) {
+            index.set(key, []);
+        }
+        index.get(key).push(feature);
+    });
+    return index;
+}
 
-            link.addEventListener(
-                'mouseenter',
-                function() {
+let placeIndex = null;
 
-                    const name =
-                        link.dataset.place;
+function getFeatureInfo(feature) {
+    if (!feature || !feature.geometry) return null;
+    const points = [];
+    function collect(coordinates) {
+        if (typeof coordinates[0] === "number") {
+            points.push(coordinates);
+            return;
+        }
+        coordinates.forEach(collect);
+    }
+    collect(feature.geometry.coordinates);
 
-                    activatePlace(
-                        name,
-                        link
-                    );
+    if (points.length === 0) return null;
 
+    let minLng = Infinity, maxLng = -Infinity;
+    let minLat = Infinity, maxLat = -Infinity;
+    let sumLng = 0, sumLat = 0;
+
+    points.forEach(([lng, lat]) => {
+        if (lng < minLng) minLng = lng;
+        if (lng > maxLng) maxLng = lng;
+        if (lat < minLat) minLat = lat;
+        if (lat > maxLat) maxLat = lat;
+        sumLng += lng;
+        sumLat += lat;
+    });
+
+    const center = [sumLng / points.length, sumLat / points.length];
+    return { center };
+}
+
+/* 著色高亮 */
+function highlightFeature(feature) {
+    if (!feature) return;
+    const normName = feature.properties.__place_norm__ || normalizeName(getPlaceName(feature));
+    if (!normName) return;
+
+    if (map.getLayer("place-highlight")) {
+        map.setFilter("place-highlight", ["==", ["get", "__place_norm__"], normName]);
+        map.setLayoutProperty("place-highlight", "visibility", "visible");
+    }
+    if (map.getLayer("place-highlight-outline")) {
+        map.setFilter("place-highlight-outline", ["==", ["get", "__place_norm__"], normName]);
+        map.setLayoutProperty("place-highlight-outline", "visibility", "visible");
+    }
+    activeFeature = feature;
+}
+
+function clearHighlight() {
+    if (map.getLayer("place-highlight")) {
+        map.setLayoutProperty("place-highlight", "visibility", "none");
+    }
+    if (map.getLayer("place-highlight-outline")) {
+        map.setLayoutProperty("place-highlight-outline", "visibility", "none");
+    }
+    activeFeature = null;
+}
+
+/* 更新連接虛線 */
+function updateConnectionLine() {
+    if (!activeFeature || !activeElement) return;
+
+    const info = getFeatureInfo(activeFeature);
+    if (!info) return;
+
+    const mapPoint = map.project(info.center);
+    const mapContainer = document.getElementById("map-container");
+    const mapRect = mapContainer.getBoundingClientRect();
+    const textRect = activeElement.getBoundingClientRect();
+
+    const x1 = textRect.right;
+    const y1 = textRect.top + textRect.height / 2;
+
+    const x2 = mapRect.left + mapPoint.x;
+    const y2 = mapRect.top + mapPoint.y;
+
+    const line = document.getElementById("connection-line");
+    const dot = document.getElementById("connection-dot");
+
+    line.setAttribute("x1", x1);
+    line.setAttribute("y1", y1);
+    line.setAttribute("x2", x2);
+    line.setAttribute("y2", y2);
+
+    dot.setAttribute("cx", x2);
+    dot.setAttribute("cy", y2);
+
+    line.style.display = "block";
+    dot.style.display = "block";
+}
+
+function clearConnectionLine() {
+    const line = document.getElementById("connection-line");
+    const dot = document.getElementById("connection-dot");
+    line.style.display = "none";
+    dot.style.display = "none";
+    if (activeElement) {
+        activeElement.classList.remove("active");
+    }
+    activeElement = null;
+}
+
+/* 啟動高亮與自動將鏡頭移至目標地點 */
+function activatePlace(element, feature, autoFly = true) {
+    if (activeElement && activeElement !== element) {
+        activeElement.classList.remove("active");
+    }
+    activeElement = element;
+    activeElement.classList.add("active");
+
+    highlightFeature(feature);
+
+    const info = getFeatureInfo(feature);
+    if (info && autoFly) {
+        const bounds = map.getBounds();
+        const sw = bounds.getSouthWest();
+        const ne = bounds.getNorthEast();
+        const inView = info.center[0] >= sw.lng && info.center[0] <= ne.lng &&
+                       info.center[1] >= sw.lat && info.center[1] <= ne.lat;
+
+        // 若不在當前畫面內，則自動滑動鏡頭至該點
+        if (!inView) {
+            map.easeTo({
+                center: info.center,
+                duration: 500,
+                essential: true
+            });
+        }
+    }
+
+    updateConnectionLine();
+}
+
+function deactivatePlace() {
+    clearHighlight();
+    clearConnectionLine();
+}
+
+function findPlaceOccurrences() {
+    const story = document.querySelector(".paper-body");
+    if (!story) return;
+
+    const names = [...placeIndex.keys()];
+    names.sort((a, b) => b.length - a.length);
+
+    const walker = document.createTreeWalker(
+        story,
+        NodeFilter.SHOW_TEXT,
+        {
+            acceptNode: function(node) {
+                if (node.parentElement.closest("script,style")) {
+                    return NodeFilter.FILTER_REJECT;
                 }
-            );
-
-
-            link.addEventListener(
-                'mouseleave',
-                function() {
-
-                    /*
-                     * 不立刻關閉。
-                     *
-                     * 如果使用者從文字移動到地圖，
-                     * 仍然保留目前 highlight。
-                     */
-
-                }
-            );
-
+                return NodeFilter.FILTER_ACCEPT;
+            }
         }
     );
 
-}
+    const textNodes = [];
+    let node;
+    while (node = walker.nextNode()) {
+        textNodes.push(node);
+    }
 
+    textNodes.forEach(textNode => {
+        const text = textNode.nodeValue;
+        let matches = [];
 
-/* =========================================================
-   找 GeoJSON 地名
-========================================================= */
+        names.forEach(name => {
+            let position = 0;
+            while (true) {
+                const index = text.indexOf(name, position);
+                if (index === -1) break;
 
-function findPlaceFeature(
-    articleName
-) {
+                matches.push({
+                    start: index,
+                    end: index + name.length,
+                    name: name
+                });
 
-    /*
-     * 先透過 alias 取得
-     * GeoJSON 真正名稱
-     */
-
-    const targetName =
-        placeAlias[articleName] ||
-        articleName;
-
-
-    /*
-     * 精確比對
-     */
-
-    let feature =
-        placeFeatures.find(
-            function(f) {
-
-                const name =
-                    f.properties &&
-                    f.properties["地名"];
-
-                return name === targetName;
-
+                position = index + name.length;
             }
-        );
-
-
-    /*
-     * 如果精確比對不到，
-     * 嘗試中文名稱包含。
-     *
-     * 例如：
-     *
-     * 近黃社
-     *
-     * ↔
-     *
-     * 近黃社蕃地
-     */
-
-    if (!feature) {
-
-        feature =
-            placeFeatures.find(
-                function(f) {
-
-                    const name =
-                        f.properties &&
-                        f.properties["地名"];
-
-                    if (!name) {
-                        return false;
-                    }
-
-                    return (
-                        name.includes(articleName) ||
-                        articleName.includes(name)
-                    );
-
-                }
-            );
-
-    }
-
-
-    return feature || null;
-
-}
-
-
-/* =========================================================
-   啟用地名
-========================================================= */
-
-function activatePlace(
-    articleName,
-    element
-) {
-
-    const feature =
-        findPlaceFeature(
-            articleName
-        );
-
-
-    console.log(
-        '搜尋地名：',
-        articleName
-    );
-
-    console.log(
-        '找到 GeoJSON：',
-        feature
-    );
-
-
-    /*
-     * 找不到
-     */
-
-    if (!feature) {
-
-        console.warn(
-            'GeoJSON 找不到地名：',
-            articleName
-        );
-
-        clearConnection();
-
-        return;
-    }
-
-
-    activeFeature =
-        feature;
-
-    activePlace =
-        articleName;
-
-
-    /*
-     * 取得 GeoJSON 真正名稱
-     */
-
-    const realName =
-        feature.properties["地名"];
-
-
-    /*
-     * 高亮 polygon
-     */
-
-    if (map.getLayer(
-        'place-highlight'
-    )) {
-
-        map.setFilter(
-            'place-highlight',
-            [
-                '==',
-                ['get', '地名'],
-                realName
-            ]
-        );
-
-    }
-
-
-    /*
-     * 地圖自動移動到 polygon
-     */
-
-    const center =
-        getFeatureCenter(
-            feature
-        );
-
-
-    if (center) {
-
-        map.easeTo({
-
-            center:
-                center,
-
-            duration:
-                800,
-
-            essential:
-                true
-
         });
 
-    }
+        if (matches.length === 0) return;
 
+        matches.sort((a, b) => {
+            if (a.start !== b.start) return a.start - b.start;
+            return b.end - a.end;
+        });
 
-    /*
-     * 右上角資訊
-     */
+        const filtered = [];
+        matches.forEach(match => {
+            const last = filtered[filtered.length - 1];
+            if (!last || match.start >= last.end) {
+                filtered.push(match);
+            }
+        });
 
-    document
-        .getElementById(
-            'place-name'
-        )
-        .textContent =
-        realName;
+        if (filtered.length === 0) return;
 
+        const fragment = document.createDocumentFragment();
+        let cursor = 0;
 
-    document
-        .getElementById(
-            'place-info'
-        )
-        .classList
-        .add('visible');
-
-
-    /*
-     * 等地圖移動後重新畫線
-     */
-
-    setTimeout(
-        function() {
-
-            drawConnection(
-                element,
-                feature
-            );
-
-        },
-        100
-    );
-
-}
-
-
-/* =========================================================
-   計算 Feature 中心點
-
-   支援：
-
-   Polygon
-   MultiPolygon
-========================================================= */
-
-function getFeatureCenter(
-    feature
-) {
-
-    if (
-        !feature ||
-        !feature.geometry
-    ) {
-
-        return null;
-    }
-
-
-    const geometry =
-        feature.geometry;
-
-
-    let points = [];
-
-
-    if (
-        geometry.type ===
-        'Polygon'
-    ) {
-
-        geometry.coordinates
-            .forEach(
-                function(ring) {
-
-                    ring.forEach(
-                        function(point) {
-
-                            points.push(
-                                point
-                            );
-
-                        }
-                    );
-
-                }
-            );
-
-    }
-
-
-    else if (
-        geometry.type ===
-        'MultiPolygon'
-    ) {
-
-        geometry.coordinates
-            .forEach(
-                function(polygon) {
-
-                    polygon.forEach(
-                        function(ring) {
-
-                            ring.forEach(
-                                function(point) {
-
-                                    points.push(
-                                        point
-                                    );
-
-                                }
-                            );
-
-                        }
-                    );
-
-                }
-            );
-
-    }
-
-
-    if (!points.length) {
-
-        return null;
-
-    }
-
-
-    /*
-     * Bounding box center
-     */
-
-    let minLng =
-        Infinity;
-
-    let maxLng =
-        -Infinity;
-
-    let minLat =
-        Infinity;
-
-    let maxLat =
-        -Infinity;
-
-
-    points.forEach(
-        function(point) {
-
-            const lng =
-                point[0];
-
-            const lat =
-                point[1];
-
-
-            minLng =
-                Math.min(
-                    minLng,
-                    lng
+        filtered.forEach(match => {
+            if (match.start > cursor) {
+                fragment.appendChild(
+                    document.createTextNode(text.substring(cursor, match.start))
                 );
-
-            maxLng =
-                Math.max(
-                    maxLng,
-                    lng
-                );
-
-            minLat =
-                Math.min(
-                    minLat,
-                    lat
-                );
-
-            maxLat =
-                Math.max(
-                    maxLat,
-                    lat
-                );
-
-        }
-    );
-
-
-    return [
-
-        (minLng + maxLng) / 2,
-
-        (minLat + maxLat) / 2
-
-    ];
-
-}
-
-
-/* =========================================================
-   畫「左文 → 右圖」連線
-========================================================= */
-
-function drawConnection(
-    element,
-    feature
-) {
-
-    if (!feature) {
-
-        return;
-
-    }
-
-
-    const center =
-        getFeatureCenter(
-            feature
-        );
-
-
-    if (!center) {
-
-        return;
-
-    }
-
-
-    /*
-     * Mapbox 地圖上的經緯度
-     * → 螢幕座標
-     */
-
-    const mapPoint =
-        map.project(
-            center
-        );
-
-
-    /*
-     * 左側文字位置
-     */
-
-    const rect =
-        element.getBoundingClientRect();
-
-
-    const startX =
-        rect.right;
-
-    const startY =
-        rect.top +
-        rect.height / 2;
-
-
-    /*
-     * 地圖位置
-     *
-     * map.project()
-     * 是相對於 map container。
-     */
-
-    const mapRect =
-        document
-            .getElementById(
-                'map'
-            )
-            .getBoundingClientRect();
-
-
-    const endX =
-        mapRect.left +
-        mapPoint.x;
-
-
-    const endY =
-        mapRect.top +
-        mapPoint.y;
-
-
-    /*
-     * 貝茲曲線控制點
-     */
-
-    const control1X =
-        startX +
-        (endX - startX) *
-        0.35;
-
-
-    const control2X =
-        startX +
-        (endX - startX) *
-        0.70;
-
-
-    const path =
-        `
-        M ${startX} ${startY}
-        C
-        ${control1X} ${startY},
-        ${control2X} ${endY},
-        ${endX} ${endY}
-        `;
-
-
-    const line =
-        document.getElementById(
-            'connection-line'
-        );
-
-
-    const dot =
-        document.getElementById(
-            'connection-dot'
-        );
-
-
-    line.setAttribute(
-        'd',
-        path
-    );
-
-
-    dot.setAttribute(
-        'cx',
-        endX
-    );
-
-
-    dot.setAttribute(
-        'cy',
-        endY
-    );
-
-
-    line.style.opacity =
-        '1';
-
-    dot.style.opacity =
-        '1';
-
-}
-
-
-/* =========================================================
-   清除連線
-========================================================= */
-
-function clearConnection() {
-
-    const line =
-        document.getElementById(
-            'connection-line'
-        );
-
-    const dot =
-        document.getElementById(
-            'connection-dot'
-        );
-
-
-    line.style.opacity =
-        '0';
-
-    dot.style.opacity =
-        '0';
-
-
-    if (
-        map.getLayer(
-            'place-highlight'
-        )
-    ) {
-
-        map.setFilter(
-            'place-highlight',
-            [
-                '==',
-                ['get', '地名'],
-                ''
-            ]
-        );
-
-    }
-
-
-    document
-        .getElementById(
-            'place-info'
-        )
-        .classList
-        .remove(
-            'visible'
-        );
-
-}
-
-
-/* =========================================================
-   地圖移動 / 縮放時
-   重新計算連線位置
-========================================================= */
-
-map.on(
-    'move',
-    function() {
-
-        if (
-            activeFeature &&
-            activePlace
-        ) {
-
-            const element =
-                document.querySelector(
-                    '.place-link[data-place="' +
-                    CSS.escape(activePlace) +
-                    '"]'
-                );
-
-
-            if (element) {
-
-                drawConnection(
-                    element,
-                    activeFeature
-                );
-
             }
 
-        }
+            const features = placeIndex.get(match.name);
 
-    }
-);
-
-
-map.on(
-    'zoom',
-    function() {
-
-        if (
-            activeFeature &&
-            activePlace
-        ) {
-
-            const element =
-                document.querySelector(
-                    '.place-link[data-place="' +
-                    CSS.escape(activePlace) +
-                    '"]'
+            if (!features || features.length === 0) {
+                fragment.appendChild(
+                    document.createTextNode(text.substring(match.start, match.end))
                 );
+            } else {
+                const feature = features[0];
+                const span = document.createElement("span");
+                span.className = "map-place";
+                span.textContent = text.substring(match.start, match.end);
+                span.dataset.place = match.name;
 
+                // 滑鼠移入
+                span.addEventListener("mouseenter", function() {
+                    activatePlace(span, feature, true);
+                });
 
-            if (element) {
+                // 滑鼠移出
+                span.addEventListener("mouseleave", function() {
+                    deactivatePlace();
+                });
 
-                drawConnection(
-                    element,
-                    activeFeature
-                );
+                // 點擊事件（適合手機/觸控板）
+                span.addEventListener("click", function(e) {
+                    e.stopPropagation();
+                    const info = getFeatureInfo(feature);
+                    if (info) {
+                        map.flyTo({ center: info.center, zoom: 12, duration: 800 });
+                    }
+                    activatePlace(span, feature, true);
+                });
 
+                fragment.appendChild(span);
             }
 
+            cursor = match.end;
+        });
+
+        if (cursor < text.length) {
+            fragment.appendChild(
+                document.createTextNode(text.substring(cursor))
+            );
         }
 
-    }
-);
+        textNode.parentNode.replaceChild(fragment, textNode);
+    });
+}
 
+// 監聽滾動與調整大小
+map.on("move", updateConnectionLine);
+document.getElementById("story").addEventListener("scroll", updateConnectionLine);
+window.addEventListener("resize", updateConnectionLine);
 
-window.addEventListener(
-    'resize',
-    function() {
+map.on("load", async function() {
+    try {
+        const [keepData, semiData, removeData] = await Promise.all([
+            loadJSON(DATA_FILES.keep),
+            loadJSON(DATA_FILES.semi),
+            loadJSON(DATA_FILES.remove)
+        ]);
 
-        if (
-            activeFeature &&
-            activePlace
-        ) {
+        const rawFeatures = [
+            ...(keepData.features || []),
+            ...(semiData.features || []),
+            ...(removeData.features || [])
+        ];
 
-            const element =
-                document.querySelector(
-                    '.place-link[data-place="' +
-                    CSS.escape(activePlace) +
-                    '"]'
-                );
+        // 核心步驟：統一注入 `__place_norm__` 屬性
+        placeFeatures = rawFeatures.map((f, idx) => {
+            if (!f.properties) f.properties = {};
+            const rawName = getPlaceName(f);
+            const normName = normalizeName(rawName);
+            f.properties.__place_name__ = rawName;
+            f.properties.__place_norm__ = normName;
+            f.properties.__feature_id__ = idx;
+            return f;
+        });
 
+        placeIndex = buildPlaceIndex();
+        findPlaceOccurrences();
 
-            if (element) {
-
-                drawConnection(
-                    element,
-                    activeFeature
-                );
-
+        map.addSource("all-places-source", {
+            type: "geojson",
+            data: {
+                type: "FeatureCollection",
+                features: placeFeatures
             }
+        });
 
-        }
+        map.addSource("keep-source", { type: "geojson", data: keepData });
+        map.addSource("semi-source", { type: "geojson", data: semiData });
+        map.addSource("remove-source", { type: "geojson", data: removeData });
 
+        // 要存置圖層 (綠)
+        map.addLayer({
+            id: "keep-layer",
+            type: "fill",
+            source: "keep-source",
+            paint: { "fill-color": "#2e7d32", "fill-opacity": 0.55 }
+        });
+        map.addLayer({
+            id: "keep-outline",
+            type: "line",
+            source: "keep-source",
+            paint: { "line-color": "#174d22", "line-width": 1.5 }
+        });
+
+        // 準要存置圖層 (黃)
+        map.addLayer({
+            id: "semi-layer",
+            type: "fill",
+            source: "semi-source",
+            paint: { "fill-color": "#f9a825", "fill-opacity": 0.55 }
+        });
+        map.addLayer({
+            id: "semi-outline",
+            type: "line",
+            source: "semi-source",
+            paint: { "line-color": "#c77800", "line-width": 1.5 }
+        });
+
+        // 不要存置圖層 (紅)
+        map.addLayer({
+            id: "remove-layer",
+            type: "fill",
+            source: "remove-source",
+            paint: { "fill-color": "#e53935", "fill-opacity": 0.55 }
+        });
+        map.addLayer({
+            id: "remove-outline",
+            type: "line",
+            source: "remove-source",
+            paint: { "line-color": "#b71c1c", "line-width": 1.5 }
+        });
+
+        // 懸停高亮圖層（超顯眼洋紅填滿 + 亮黃粗外框）
+        map.addLayer({
+            id: "place-highlight",
+            type: "fill",
+            source: "all-places-source",
+            paint: { "fill-color": "#ff0055", "fill-opacity": 0.8 },
+            layout: { visibility: "none" }
+        });
+        map.addLayer({
+            id: "place-highlight-outline",
+            type: "line",
+            source: "all-places-source",
+            paint: { "line-color": "#ffff00", "line-width": 4 },
+            layout: { visibility: "none" }
+        });
+
+        document.getElementById("loading").classList.add("hidden");
+
+    } catch (err) {
+        console.error(err);
+        const errDiv = document.getElementById("error");
+        errDiv.textContent = "載入地圖資料失敗：" + err.message;
+        errDiv.style.display = "block";
+        document.getElementById("loading").classList.add("hidden");
     }
-);
-
+});
 </script>
 
 </body>
