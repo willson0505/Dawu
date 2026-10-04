@@ -2,7 +2,6 @@
 <html lang="zh-TW">
 
 <head>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>大武林野調查區</title>
@@ -224,7 +223,7 @@ body {
 </p>
 
 <p>
-林況方面，原生林約佔全林地面積 7 成，其餘大部分的土地為蕃人開墾地，其中一半以上為叢林。9 成的原生林為闊葉樹的雜木林，但到了大武山附近的高地，有由自然生長的臺灣鐵杉、紅檜而成的針闊葉混合林。接著，就樹木生長情形來看，雖然海岸附近的樹木生長情形不佳，但隨著遠離海岸，情形逐漸變好。
+林況方面，原生林約佔全林地面積 7 成，其餘大部分的土地為蕃人開墾地，其中一半以上為叢林。9 成的原se林為闊葉樹的雜木林，但到了大武山附近的高地，有由自然生長的臺灣鐵杉、紅檜而成的針闊葉混合林。接著，就樹木生長情形來看，雖然海岸附近的樹木生長情形不佳，但隨著遠離海岸，情形逐漸變好。
 </p>
 
 <p>
@@ -296,7 +295,7 @@ const DATA_FILES = {
 };
 
 let placeFeatures = [];
-let activeFeature = null;
+let activeFeatures = [];
 let activeElement = null;
 
 async function loadJSON(url) {
@@ -307,94 +306,122 @@ async function loadJSON(url) {
     return await response.json();
 }
 
-/* 廣義掃描各種可能的 GeoJSON 地名屬性欄位名稱 */
-function getPlaceName(feature) {
+/* 核心清理與正規化：移除引號、括號與空白，轉成純淨字串以利模糊比對 */
+function cleanString(str) {
+    if (!str) return "";
+    return String(str)
+        .toLowerCase()
+        .replace(/["'「」『』()（）\[\]{}臺台・]/g, "")
+        .replace(/\s+/g, "")
+        .trim();
+}
+
+/* 取得 GeoJSON 內指定的「地名」欄位 */
+function getGeoPlaceName(feature) {
     if (!feature || !feature.properties) return "";
     const p = feature.properties;
-    const possibleKeys = [
-        "地名", "地名欄位", "名稱", "社名", "蕃社", "蕃社名", "林野名稱", "區劃名稱",
-        "name", "NAME", "Name", "title", "TITLE", "Title", "label", "LABEL", "Label",
-        "Layer", "LAYER", "layer", "Text", "TEXT"
-    ];
-    for (const key of possibleKeys) {
-        if (p[key] !== undefined && p[key] !== null && String(p[key]).trim() !== "") {
-            return String(p[key]).trim();
-        }
+    // 嚴格對應您的需求：欄位名稱就是「地名」
+    if (p["地名"] !== undefined && p["地名"] !== null) {
+        return String(p["地名"]).trim();
     }
+    // 備用防呆：若有些資料剛好叫「地名 」或其它常見變形
     for (const key in p) {
-        if (typeof p[key] === "string" && p[key].trim() !== "" && !key.startsWith("_")) {
-            return p[key].trim();
+        if (key.trim() === "地名") {
+            return String(p[key]).trim();
         }
     }
     return "";
 }
 
-function normalizeName(name) {
-    return String(name).replace(/\s+/g, "").trim();
+/* 智慧模糊配對：檢查內文詞彙與地圖地名是否核心相符 */
+function isMatch(textTerm, geoName) {
+    const cleanText = cleanString(textTerm);
+    const cleanGeo = cleanString(geoName);
+    if (!cleanText || !cleanGeo) return false;
+
+    // 彼此包含（例如內文有 tabakasu，地圖有 tabakasu社蕃地）
+    if (cleanGeo.includes(cleanText) || cleanText.includes(cleanGeo)) {
+        return true;
+    }
+
+    // 若詞彙長度大於等於 2 且雷同
+    if (cleanText.length >= 2 && cleanGeo.length >= 2) {
+        if (cleanGeo.substring(0, 2) === cleanText.substring(0, 2)) {
+            return true;
+        }
+    }
+
+    return false;
 }
+
+let geoNameMap = []; // 儲存 { feature, rawName, cleanName }
 
 function buildPlaceIndex() {
-    const index = new Map();
-    placeFeatures.forEach(feature => {
-        const name = getPlaceName(feature);
-        if (!name) return;
-        const key = normalizeName(name);
-        if (!index.has(key)) {
-            index.set(key, []);
-        }
-        index.get(key).push(feature);
-    });
-    return index;
+    geoNameMap = placeFeatures.map(f => {
+        const rawName = getGeoPlaceName(f);
+        return {
+            feature: f,
+            rawName: rawName,
+            cleanName: cleanString(rawName)
+        };
+    }).filter(item => item.rawName !== "");
 }
 
-let placeIndex = null;
-
-function getFeatureInfo(feature) {
-    if (!feature || !feature.geometry) return null;
-    const points = [];
-    function collect(coordinates) {
-        if (typeof coordinates[0] === "number") {
-            points.push(coordinates);
-            return;
+/* 找出所有符合該文字片段的地圖 Features */
+function findMatchingFeatures(textTerm) {
+    const matched = [];
+    geoNameMap.forEach(item => {
+        if (isMatch(textTerm, item.rawName)) {
+            matched.push(item.feature);
         }
-        coordinates.forEach(collect);
-    }
-    collect(feature.geometry.coordinates);
+    });
+    return matched;
+}
+
+/* 計算多個 Features 的綜合中心點與邊界，供自動平移對齊用 */
+function getFeaturesGroupInfo(features) {
+    if (!features || features.length === 0) return null;
+    const points = [];
+
+    features.forEach(feature => {
+        if (!feature.geometry) return;
+        function collect(coordinates) {
+            if (typeof coordinates[0] === "number") {
+                points.push(coordinates);
+                return;
+            }
+            coordinates.forEach(collect);
+        }
+        collect(feature.geometry.coordinates);
+    });
 
     if (points.length === 0) return null;
 
-    let minLng = Infinity, maxLng = -Infinity;
-    let minLat = Infinity, maxLat = -Infinity;
     let sumLng = 0, sumLat = 0;
-
     points.forEach(([lng, lat]) => {
-        if (lng < minLng) minLng = lng;
-        if (lng > maxLng) maxLng = lng;
-        if (lat < minLat) minLat = lat;
-        if (lat > maxLat) maxLat = lat;
         sumLng += lng;
         sumLat += lat;
     });
 
-    const center = [sumLng / points.length, sumLat / points.length];
-    return { center };
+    return {
+        center: [sumLng / points.length, sumLat / points.length]
+    };
 }
 
-/* 著色高亮 */
-function highlightFeature(feature) {
-    if (!feature) return;
-    const normName = feature.properties.__place_norm__ || normalizeName(getPlaceName(feature));
-    if (!normName) return;
+/* 高亮所有對應的多邊形（支援跨圖層同時點亮） */
+function highlightFeatures(features) {
+    if (!features || features.length === 0) return;
+    const ids = features.map(f => f.properties.__feature_id__);
 
     if (map.getLayer("place-highlight")) {
-        map.setFilter("place-highlight", ["==", ["get", "__place_norm__"], normName]);
+        map.setFilter("place-highlight", ["in", ["get", "__feature_id__"], ...ids]);
         map.setLayoutProperty("place-highlight", "visibility", "visible");
     }
     if (map.getLayer("place-highlight-outline")) {
-        map.setFilter("place-highlight-outline", ["==", ["get", "__place_norm__"], normName]);
+        map.setFilter("place-highlight-outline", ["in", ["get", "__feature_id__"], ...ids]);
         map.setLayoutProperty("place-highlight-outline", "visibility", "visible");
     }
-    activeFeature = feature;
+    activeFeatures = features;
 }
 
 function clearHighlight() {
@@ -404,14 +431,14 @@ function clearHighlight() {
     if (map.getLayer("place-highlight-outline")) {
         map.setLayoutProperty("place-highlight-outline", "visibility", "none");
     }
-    activeFeature = null;
+    activeFeatures = [];
 }
 
 /* 更新連接虛線 */
 function updateConnectionLine() {
-    if (!activeFeature || !activeElement) return;
+    if (!activeFeatures || activeFeatures.length === 0 || !activeElement) return;
 
-    const info = getFeatureInfo(activeFeature);
+    const info = getFeaturesGroupInfo(activeFeatures);
     if (!info) return;
 
     const mapPoint = map.project(info.center);
@@ -451,17 +478,20 @@ function clearConnectionLine() {
     activeElement = null;
 }
 
-/* 啟動高亮與自動將鏡頭移至目標地點 */
-function activatePlace(element, feature, autoFly = true) {
+/* 啟動地名互動 */
+function activatePlace(element, textTerm, autoFly = true) {
+    const matched = findMatchingFeatures(textTerm);
+    if (matched.length === 0) return;
+
     if (activeElement && activeElement !== element) {
         activeElement.classList.remove("active");
     }
     activeElement = element;
     activeElement.classList.add("active");
 
-    highlightFeature(feature);
+    highlightFeatures(matched);
 
-    const info = getFeatureInfo(feature);
+    const info = getFeaturesGroupInfo(matched);
     if (info && autoFly) {
         const bounds = map.getBounds();
         const sw = bounds.getSouthWest();
@@ -469,7 +499,6 @@ function activatePlace(element, feature, autoFly = true) {
         const inView = info.center[0] >= sw.lng && info.center[0] <= ne.lng &&
                        info.center[1] >= sw.lat && info.center[1] <= ne.lat;
 
-        // 若不在當前畫面內，則自動滑動鏡頭至該點
         if (!inView) {
             map.easeTo({
                 center: info.center,
@@ -487,12 +516,23 @@ function deactivatePlace() {
     clearConnectionLine();
 }
 
+/* 自動掃描並將文章中出現的地名轉換為互動標籤 */
 function findPlaceOccurrences() {
     const story = document.querySelector(".paper-body");
     if (!story) return;
 
-    const names = [...placeIndex.keys()];
-    names.sort((a, b) => b.length - a.length);
+    // 收集所有可能的關鍵詞（包含羅馬拼音、漢字）
+    // 依長度排序，確保優先匹配較長的複合詞
+    let searchTerms = [];
+    geoNameMap.forEach(item => {
+        searchTerms.push(item.rawName);
+    });
+
+    // 額外加入內文中常見的羅馬拼音/日文外來語關鍵字庫讓其能被順利捕捉
+    const extraKeywords = ["タバカス", "Tabakasu", "ルラクシ", "Rurakushi", "ビララウ", "Birarau", "パウモリ", "Paumori", "チヨコゾル", "Chiyokozoru", "ツダカス", "Tsudakasu", "トビロウ", "Tobirou", "カラタラン", "Karataran", "マリドツプ", "Maridotsupu", "ポケツ", "Poketsu", "カアロワン", "Kaarowan", "トロコワン", "Torokowan", "パシヨロ", "Pashiyoro", "マリプル", "Maripuru", "シヨモル", "Shiyomoru", "トコブルイピリ", "Tokoburuipiri", "シヤコプ", "Shiyakopu", "トコホル", "Tokohoru", "チヨカクライ", "Chiyokakurai", "テババオ", "Tebabao", "テノコ", "Tenoko", "タバカス", "Tabakasu", "カクブラン", "Kakuburan", "ポリガツト", "Porigatsuto", "タリリク", "Taririku", "キナバリヤン", "Kinabariyan", "クダカス", "Kudakasu", "トアバル", "Toabaru", "トアカウ", "Toakau", "ハイブカイ", "Haibukai", "ラリバ", "Rariba", "トコトコワン", "Tokotokowan", "カケラブチャン", "Kakerabuchiyan", "チヨコプリ", "Chokoburi", "チヤチヤガトワン", "Chiyachiyagatowan", "太麻里", "羅打結", "鴨子蘭", "文里格", "猴子蘭", "蚶子崙", "大武窟", "察暗密", "打暗打蘭", "大武", "鴿子籠", "大烏萬", "拔子洞", "獅子獅", "大竹高", "甘壁壁", "大得吉"];
+    
+    searchTerms = [...new Set([...searchTerms, ...extraKeywords])];
+    searchTerms.sort((a, b) => b.length - a.length);
 
     const walker = document.createTreeWalker(
         story,
@@ -517,19 +557,19 @@ function findPlaceOccurrences() {
         const text = textNode.nodeValue;
         let matches = [];
 
-        names.forEach(name => {
+        searchTerms.forEach(term => {
             let position = 0;
             while (true) {
-                const index = text.indexOf(name, position);
+                const index = text.indexOf(term, position);
                 if (index === -1) break;
 
                 matches.push({
                     start: index,
-                    end: index + name.length,
-                    name: name
+                    end: index + term.length,
+                    term: term
                 });
 
-                position = index + name.length;
+                position = index + term.length;
             }
         });
 
@@ -560,22 +600,20 @@ function findPlaceOccurrences() {
                 );
             }
 
-            const features = placeIndex.get(match.name);
+            const matchedFeatures = findMatchingFeatures(match.term);
 
-            if (!features || features.length === 0) {
+            if (matchedFeatures.length === 0) {
                 fragment.appendChild(
                     document.createTextNode(text.substring(match.start, match.end))
                 );
             } else {
-                const feature = features[0];
                 const span = document.createElement("span");
                 span.className = "map-place";
                 span.textContent = text.substring(match.start, match.end);
-                span.dataset.place = match.name;
 
                 // 滑鼠移入
                 span.addEventListener("mouseenter", function() {
-                    activatePlace(span, feature, true);
+                    activatePlace(span, match.term, true);
                 });
 
                 // 滑鼠移出
@@ -583,14 +621,14 @@ function findPlaceOccurrences() {
                     deactivatePlace();
                 });
 
-                // 點擊事件（適合手機/觸控板）
+                // 點擊事件（支援手機/觸控板）
                 span.addEventListener("click", function(e) {
                     e.stopPropagation();
-                    const info = getFeatureInfo(feature);
+                    const info = getFeaturesGroupInfo(matchedFeatures);
                     if (info) {
                         map.flyTo({ center: info.center, zoom: 12, duration: 800 });
                     }
-                    activatePlace(span, feature, true);
+                    activatePlace(span, match.term, true);
                 });
 
                 fragment.appendChild(span);
@@ -628,18 +666,14 @@ map.on("load", async function() {
             ...(removeData.features || [])
         ];
 
-        // 核心步驟：統一注入 `__place_norm__` 屬性
+        // 幫所有 Feature 加上內部專用流水號 ID，確保跨圖層多多邊形能同時選取
         placeFeatures = rawFeatures.map((f, idx) => {
             if (!f.properties) f.properties = {};
-            const rawName = getPlaceName(f);
-            const normName = normalizeName(rawName);
-            f.properties.__place_name__ = rawName;
-            f.properties.__place_norm__ = normName;
             f.properties.__feature_id__ = idx;
             return f;
         });
 
-        placeIndex = buildPlaceIndex();
+        buildPlaceIndex();
         findPlaceOccurrences();
 
         map.addSource("all-places-source", {
@@ -696,7 +730,7 @@ map.on("load", async function() {
             paint: { "line-color": "#b71c1c", "line-width": 1.5 }
         });
 
-        // 懸停高亮圖層（超顯眼洋紅填滿 + 亮黃粗外框）
+        // 懸停高亮圖層（超顯眼洋紅填滿 + 亮黃粗外框，支援同時點亮多個 Polygon）
         map.addLayer({
             id: "place-highlight",
             type: "fill",
