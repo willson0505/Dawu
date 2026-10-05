@@ -87,15 +87,15 @@ body {
 }
 
 .map-place:hover {
-    background: rgba(255, 0, 85, 0.5);
-    color: #ffffff;
+    background: rgba(255, 234, 0, 0.4);
+    color: #000;
 }
 
 .map-place.active, .map-place.locked {
-    background: rgba(255, 0, 85, 0.9);
-    color: #ffffff;
+    background: rgba(255, 234, 0, 0.7);
+    color: #000;
     font-weight: bold;
-    box-shadow: 0 0 0 2px #ff0055;
+    box-shadow: 0 0 0 2px #ffea00;
 }
 
 /* 右側地圖 */
@@ -166,7 +166,7 @@ body {
 }
 
 .connection-line {
-    stroke: #ff0055;
+    stroke: #ffea00;
     stroke-width: 3;
     fill: none;
     stroke-linecap: round;
@@ -175,8 +175,8 @@ body {
 }
 
 .connection-dot {
-    fill: #ff0055;
-    stroke: #ffffff;
+    fill: #ffea00;
+    stroke: #000;
     stroke-width: 2;
 }
 
@@ -238,7 +238,7 @@ body {
 </p>
 
 <p>
-林況方面，原生林約佔全林地面積 7 成，其餘大部分的土地為蕃人開墾地，其中一半以上為叢林。9 成的原se林為闊葉樹的雜木林，但到了大武山附近的高地，有由自然生長的臺灣鐵杉、紅檜而成的針闊葉混合林。接著，就樹木生長情形來看，雖然海岸附近的樹木生長情形不佳，但隨著遠離海岸，情形逐漸變好。
+林況方面，原生林約佔全林地面積 7 成，其餘大部分的土地為蕃人開墾地，其中一半以上為叢林。9 成的原生林為闊葉樹的雜木林，但到了大武山附近的高地，有由自然生長的臺灣鐵杉、紅檜而成的針闊葉混合林。接著，就樹木生長情形來看，雖然海岸附近的樹木生長情形不佳，但隨著遠離海岸，情形逐漸變好。
 </p>
 
 <p>
@@ -306,14 +306,14 @@ const map = new maplibregl.Map({
 const DATA_FILES = {
     keep: "./大武要存置圖層.geojson",
     semi: "./大武準要存置圖層.geojson",
-    remove: "./大武不要存置圖層.geojson"
+    remove: "./大武不要存置圖層.geojson",
+    boundary: "./調查區界.geojson"
 };
 
 let placeFeatures = [];
 let activeFeatures = [];
 let activeElement = null;
 
-// 新增鎖定狀態控制變數
 let isLocked = false;
 let lockedElement = null;
 const activePopup = new maplibregl.Popup({ closeButton: true, closeOnClick: true });
@@ -342,7 +342,7 @@ function getGeoPlaceName(feature) {
         return String(p["地名"]).trim();
     }
     for (const key in p) {
-        if (key.trim() === "地名") {
+        if (key.trim() === "地名" || key.trim() === "name") {
             return String(p[key]).trim();
         }
     }
@@ -409,6 +409,34 @@ function getFeaturesGroupInfo(features) {
     return {
         center: [sumLng / points.length, sumLat / points.length]
     };
+}
+
+function getGeoJSONBounds(geojson) {
+    const coords = [];
+    function collect(coordinates) {
+        if (typeof coordinates[0] === "number") {
+            coords.push(coordinates);
+            return;
+        }
+        coordinates.forEach(collect);
+    }
+    if (geojson.features) {
+        geojson.features.forEach(f => {
+            if (f.geometry) collect(f.geometry.coordinates);
+        });
+    } else if (geojson.geometry) {
+        collect(geojson.geometry.coordinates);
+    }
+    if (coords.length === 0) return null;
+    let minLng = coords[0][0], maxLng = coords[0][0];
+    let minLat = coords[0][1], maxLat = coords[0][1];
+    coords.forEach(([lng, lat]) => {
+        if (lng < minLng) minLng = lng;
+        if (lng > maxLng) maxLng = lng;
+        if (lat < minLat) minLat = lat;
+        if (lat > maxLat) maxLat = lat;
+    });
+    return [[minLng, minLat], [maxLng, maxLat]];
 }
 
 function highlightFeatures(features) {
@@ -485,11 +513,10 @@ function clearConnectionLine() {
     }
 }
 
-/* 解除鎖定函式 */
 function unlockAll() {
     isLocked = false;
     lockedElement = null;
-    document.getElementById("story").style.overflowY = "auto"; // 恢復論文捲動
+    document.getElementById("story").style.overflowY = "auto";
     document.querySelectorAll(".map-place").forEach(el => el.classList.remove("locked", "active"));
     activeElement = null;
     clearHighlight();
@@ -532,14 +559,12 @@ function activatePlace(element, textTerm, autoFly = true) {
 }
 
 function deactivatePlace() {
-    if (isLocked) return; // 鎖定狀態下不因滑鼠移開而取消
+    if (isLocked) return;
     clearHighlight();
     clearConnectionLine();
 }
 
-/* 點擊論文區空白處解鎖監聽 */
 document.getElementById("story").addEventListener("click", function(e) {
-    // 如果點擊的不是地名標籤（即點到空白處），且目前處於鎖定狀態，則解鎖
     if (isLocked && !e.target.closest(".map-place")) {
         unlockAll();
     }
@@ -559,123 +584,130 @@ function findPlaceOccurrences() {
     searchTerms = [...new Set([...searchTerms, ...extraKeywords])];
     searchTerms.sort((a, b) => b.length - a.length);
 
-    const walker = document.createTreeWalker(
-        story,
-        NodeFilter.SHOW_TEXT,
-        {
-            acceptNode: function(node) {
-                if (node.parentElement.closest("script,style")) {
-                    return NodeFilter.FILTER_REJECT;
-                }
-                return NodeFilter.FILTER_ACCEPT;
-            }
+    const paragraphs = story.querySelectorAll("p");
+    paragraphs.forEach(p => {
+        const pText = p.textContent;
+        if (!pText.includes("行政區有") && !pText.includes("蕃社有")) {
+            return;
         }
-    );
 
-    const textNodes = [];
-    let node;
-    while (node = walker.nextNode()) {
-        textNodes.push(node);
-    }
-
-    textNodes.forEach(textNode => {
-        const text = textNode.nodeValue;
-        let matches = [];
-
-        searchTerms.forEach(term => {
-            let position = 0;
-            while (true) {
-                const index = text.indexOf(term, position);
-                if (index === -1) break;
-
-                matches.push({
-                    start: index,
-                    end: index + term.length,
-                    term: term
-                });
-
-                position = index + term.length;
-            }
-        });
-
-        if (matches.length === 0) return;
-
-        matches.sort((a, b) => {
-            if (a.start !== b.start) return a.start - b.start;
-            return b.end - a.end;
-        });
-
-        const filtered = [];
-        matches.forEach(match => {
-            const last = filtered[filtered.length - 1];
-            if (!last || match.start >= last.end) {
-                filtered.push(match);
-            }
-        });
-
-        if (filtered.length === 0) return;
-
-        const fragment = document.createDocumentFragment();
-        let cursor = 0;
-
-        filtered.forEach(match => {
-            if (match.start > cursor) {
-                fragment.appendChild(
-                    document.createTextNode(text.substring(cursor, match.start))
-                );
-            }
-
-            const matchedFeatures = findMatchingFeatures(match.term);
-
-            if (matchedFeatures.length === 0) {
-                fragment.appendChild(
-                    document.createTextNode(text.substring(match.start, match.end))
-                );
-            } else {
-                const span = document.createElement("span");
-                span.className = "map-place";
-                span.textContent = text.substring(match.start, match.end);
-
-                span.addEventListener("mouseenter", function() {
-                    if (isLocked) return; // 鎖定中不因 hover 改變
-                    activatePlace(span, match.term, true);
-                });
-
-                span.addEventListener("mouseleave", function() {
-                    deactivatePlace();
-                });
-
-                // 點擊地名：觸發鎖定，固定線段與高亮，並凍結論文捲動
-                span.addEventListener("click", function(e) {
-                    e.stopPropagation(); // 阻止冒泡到 story 空白處解鎖
-                    
-                    isLocked = true;
-                    lockedElement = span;
-                    document.getElementById("story").style.overflowY = "hidden"; // 凍結左側捲動
-
-                    document.querySelectorAll(".map-place").forEach(el => el.classList.remove("locked", "active"));
-                    span.classList.add("locked");
-
-                    const info = getFeaturesGroupInfo(matchedFeatures);
-                    if (info) {
-                        map.flyTo({ center: info.center, zoom: 12, duration: 800 });
+        const walker = document.createTreeWalker(
+            p,
+            NodeFilter.SHOW_TEXT,
+            {
+                acceptNode: function(node) {
+                    if (node.parentElement.closest("script,style")) {
+                        return NodeFilter.FILTER_REJECT;
                     }
-                    activatePlace(span, match.term, true);
-                });
-
-                fragment.appendChild(span);
+                    return NodeFilter.FILTER_ACCEPT;
+                }
             }
+        );
 
-            cursor = match.end;
-        });
-
-        if (cursor < text.length) {
-            fragment.appendChild(
-                document.createTextNode(text.substring(cursor))
-            );
+        const textNodes = [];
+        let node;
+        while (node = walker.nextNode()) {
+            textNodes.push(node);
         }
 
-        textNode.parentNode.replaceChild(fragment, textNode);
+        textNodes.forEach(textNode => {
+            const text = textNode.nodeValue;
+            let matches = [];
+
+            searchTerms.forEach(term => {
+                let position = 0;
+                while (true) {
+                    const index = text.indexOf(term, position);
+                    if (index === -1) break;
+
+                    matches.push({
+                        start: index,
+                        end: index + term.length,
+                        term: term
+                    });
+
+                    position = index + term.length;
+                }
+            });
+
+            if (matches.length === 0) return;
+
+            matches.sort((a, b) => {
+                if (a.start !== b.start) return a.start - b.start;
+                return b.end - a.end;
+            });
+
+            const filtered = [];
+            matches.forEach(match => {
+                const last = filtered[filtered.length - 1];
+                if (!last || match.start >= last.end) {
+                    filtered.push(match);
+                }
+            });
+
+            if (filtered.length === 0) return;
+
+            const fragment = document.createDocumentFragment();
+            let cursor = 0;
+
+            filtered.forEach(match => {
+                if (match.start > cursor) {
+                    fragment.appendChild(
+                        document.createTextNode(text.substring(cursor, match.start))
+                    );
+                }
+
+                const matchedFeatures = findMatchingFeatures(match.term);
+
+                if (matchedFeatures.length === 0) {
+                    fragment.appendChild(
+                        document.createTextNode(text.substring(match.start, match.end))
+                    );
+                } else {
+                    const span = document.createElement("span");
+                    span.className = "map-place";
+                    span.textContent = text.substring(match.start, match.end);
+
+                    span.addEventListener("mouseenter", function() {
+                        if (isLocked) return;
+                        activatePlace(span, match.term, true);
+                    });
+
+                    span.addEventListener("mouseleave", function() {
+                        deactivatePlace();
+                    });
+
+                    span.addEventListener("click", function(e) {
+                        e.stopPropagation();
+                        
+                        isLocked = true;
+                        lockedElement = span;
+                        document.getElementById("story").style.overflowY = "hidden";
+
+                        document.querySelectorAll(".map-place").forEach(el => el.classList.remove("locked", "active"));
+                        span.classList.add("locked");
+
+                        const info = getFeaturesGroupInfo(matchedFeatures);
+                        if (info) {
+                            map.flyTo({ center: info.center, zoom: 12, duration: 800 });
+                        }
+                        activatePlace(span, match.term, true);
+                    });
+
+                    fragment.appendChild(span);
+                }
+
+                cursor = match.end;
+            });
+
+            if (cursor < text.length) {
+                fragment.appendChild(
+                    document.createTextNode(text.substring(cursor))
+                );
+            }
+
+            textNode.parentNode.replaceChild(fragment, textNode);
+        });
     });
 }
 
@@ -685,10 +717,11 @@ window.addEventListener("resize", updateConnectionLine);
 
 map.on("load", async function() {
     try {
-        const [keepData, semiData, removeData] = await Promise.all([
+        const [keepData, semiData, removeData, boundaryData] = await Promise.all([
             loadJSON(DATA_FILES.keep),
             loadJSON(DATA_FILES.semi),
-            loadJSON(DATA_FILES.remove)
+            loadJSON(DATA_FILES.remove),
+            loadJSON(DATA_FILES.boundary)
         ]);
 
         const rawFeatures = [
@@ -705,6 +738,43 @@ map.on("load", async function() {
 
         buildPlaceIndex();
         findPlaceOccurrences();
+
+        // 載入調查區界範圍，自動對齊全貌
+        const boundaryBounds = getGeoJSONBounds(boundaryData);
+        if (boundaryBounds) {
+            map.fitBounds(boundaryBounds, { padding: 40, duration: 0 });
+        }
+
+        // 添加調查區界圖層 (黑框無填滿 + Label)
+        map.addSource("boundary-source", { type: "geojson", data: boundaryData });
+        map.addLayer({
+            id: "boundary-layer",
+            type: "fill",
+            source: "boundary-source",
+            paint: { "fill-color": "transparent", "fill-opacity": 0 }
+        });
+        map.addLayer({
+            id: "boundary-outline",
+            type: "line",
+            source: "boundary-source",
+            paint: { "line-color": "#000000", "line-width": 2 }
+        });
+        map.addLayer({
+            id: "boundary-label",
+            type: "symbol",
+            source: "boundary-source",
+            layout: {
+                "text-field": ["coalesce", ["get", "地名"], ["get", "name"], ["get", "LABEL"], ""],
+                "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
+                "text-size": 13,
+                "text-anchor": "center"
+            },
+            paint: {
+                "text-color": "#000000",
+                "text-halo-color": "#ffffff",
+                "text-halo-width": 1.5
+            }
+        });
 
         map.addSource("all-places-source", {
             type: "geojson",
@@ -757,22 +827,22 @@ map.on("load", async function() {
             paint: { "line-color": "#b71c1c", "line-width": 1.5 }
         });
 
+        // 點擊/懸停高亮圖層（無填滿桃紅色，改為黃色外框）
         map.addLayer({
             id: "place-highlight",
             type: "fill",
             source: "all-places-source",
-            paint: { "fill-color": "#ff0055", "fill-opacity": 0.8 },
+            paint: { "fill-color": "transparent", "fill-opacity": 0 },
             layout: { visibility: "none" }
         });
         map.addLayer({
             id: "place-highlight-outline",
             type: "line",
             source: "all-places-source",
-            paint: { "line-color": "#ffff00", "line-width": 4 },
+            paint: { "line-color": "#ffea00", "line-width": 3.5 },
             layout: { visibility: "none" }
         });
 
-        // 綁定地圖上 Polygon 的點擊事件，彈出詳細資料方框
         const clickableLayers = ["keep-layer", "semi-layer", "remove-layer", "place-highlight"];
         map.on("click", function(e) {
             const features = map.queryRenderedFeatures(e.point, { layers: clickableLayers });
@@ -799,7 +869,6 @@ map.on("load", async function() {
                        .addTo(map);
         });
 
-        // 滑鼠移到圖層上時改變游標指示可點擊
         clickableLayers.forEach(layerId => {
             map.on("mouseenter", layerId, () => { map.getCanvas().style.cursor = "pointer"; });
             map.on("mouseleave", layerId, () => { map.getCanvas().style.cursor = ""; });
