@@ -76,7 +76,7 @@ body {
     color: #273a2b;
 }
 
-/* 地名文字標籤 */
+/* 地名文字標籤 (保留原桃紅色調) */
 .map-place {
     cursor: pointer;
     background: rgba(220, 185, 60, 0.25);
@@ -87,15 +87,15 @@ body {
 }
 
 .map-place:hover {
-    background: rgba(255, 234, 0, 0.4);
-    color: #000;
+    background: rgba(255, 0, 85, 0.5);
+    color: #ffffff;
 }
 
 .map-place.active, .map-place.locked {
-    background: rgba(255, 234, 0, 0.7);
-    color: #000;
+    background: rgba(255, 0, 85, 0.9);
+    color: #ffffff;
     font-weight: bold;
-    box-shadow: 0 0 0 2px #ffea00;
+    box-shadow: 0 0 0 2px #ff0055;
 }
 
 /* 右側地圖 */
@@ -154,7 +154,7 @@ body {
     border-radius: 7px;
 }
 
-/* 左右動態指標線 */
+/* 左右動態指標線 (保留原桃紅色調) */
 #connection-svg {
     position: fixed;
     left: 0;
@@ -166,7 +166,7 @@ body {
 }
 
 .connection-line {
-    stroke: #ffea00;
+    stroke: #ff0055;
     stroke-width: 3;
     fill: none;
     stroke-linecap: round;
@@ -175,8 +175,8 @@ body {
 }
 
 .connection-dot {
-    fill: #ffea00;
-    stroke: #000;
+    fill: #ff0055;
+    stroke: #ffffff;
     stroke-width: 2;
 }
 
@@ -238,7 +238,7 @@ body {
 </p>
 
 <p>
-林況方面，原生林約佔全林地面積 7 成，其餘大部分的土地為蕃人開墾地，其中一半以上為叢林。9 成的原生林為闊葉樹的雜木林，但到了大武山附近的高地，有由自然生長的臺灣鐵杉、紅檜而成的針闊葉混合林。接著，就樹木生長情形來看，雖然海岸附近的樹木生長情形不佳，但隨著遠離海岸，情形逐漸變好。
+林況方面，原生林約佔全林地面積 7 成，其餘大部分的土地為蕃人開墾地，其中一半以上為叢林。9 成的原se林為闊葉樹的雜木林，但到了大武山附近的高地，有由自然生長的臺灣鐵杉、紅檜而成的針闊葉混合林。接著，就樹木生長情形來看，雖然海岸附近的樹木生長情形不佳，但隨著遠離海岸，情形逐漸變好。
 </p>
 
 <p>
@@ -307,7 +307,7 @@ const DATA_FILES = {
     keep: "./大武要存置圖層.geojson",
     semi: "./大武準要存置圖層.geojson",
     remove: "./大武不要存置圖層.geojson",
-    boundary: "./調查區界.geojson"
+    bounds: "./調查區界.geojson" // 新增調查區界圖層
 };
 
 let placeFeatures = [];
@@ -342,7 +342,7 @@ function getGeoPlaceName(feature) {
         return String(p["地名"]).trim();
     }
     for (const key in p) {
-        if (key.trim() === "地名" || key.trim() === "name") {
+        if (key.trim() === "地名") {
             return String(p[key]).trim();
         }
     }
@@ -411,34 +411,7 @@ function getFeaturesGroupInfo(features) {
     };
 }
 
-function getGeoJSONBounds(geojson) {
-    const coords = [];
-    function collect(coordinates) {
-        if (typeof coordinates[0] === "number") {
-            coords.push(coordinates);
-            return;
-        }
-        coordinates.forEach(collect);
-    }
-    if (geojson.features) {
-        geojson.features.forEach(f => {
-            if (f.geometry) collect(f.geometry.coordinates);
-        });
-    } else if (geojson.geometry) {
-        collect(geojson.geometry.coordinates);
-    }
-    if (coords.length === 0) return null;
-    let minLng = coords[0][0], maxLng = coords[0][0];
-    let minLat = coords[0][1], maxLat = coords[0][1];
-    coords.forEach(([lng, lat]) => {
-        if (lng < minLng) minLng = lng;
-        if (lng > maxLng) maxLng = lng;
-        if (lat < minLat) minLat = lat;
-        if (lat > maxLat) maxLat = lat;
-    });
-    return [[minLng, minLat], [maxLng, maxLat]];
-}
-
+// 修改點：現在只會顯示黃色外框，不會顯示粉紅色填滿
 function highlightFeatures(features) {
     if (!features || features.length === 0) {
         clearHighlight();
@@ -447,10 +420,6 @@ function highlightFeatures(features) {
     const ids = features.map(f => f.properties.__feature_id__);
     const filterExpr = ["in", ["get", "__feature_id__"], ["literal", ids]];
 
-    if (map.getLayer("place-highlight")) {
-        map.setFilter("place-highlight", filterExpr);
-        map.setLayoutProperty("place-highlight", "visibility", "visible");
-    }
     if (map.getLayer("place-highlight-outline")) {
         map.setFilter("place-highlight-outline", filterExpr);
         map.setLayoutProperty("place-highlight-outline", "visibility", "visible");
@@ -459,9 +428,6 @@ function highlightFeatures(features) {
 }
 
 function clearHighlight() {
-    if (map.getLayer("place-highlight")) {
-        map.setLayoutProperty("place-highlight", "visibility", "none");
-    }
     if (map.getLayer("place-highlight-outline")) {
         map.setLayoutProperty("place-highlight-outline", "visibility", "none");
     }
@@ -587,6 +553,7 @@ function findPlaceOccurrences() {
     const paragraphs = story.querySelectorAll("p");
     paragraphs.forEach(p => {
         const pText = p.textContent;
+        // 限制只在清單段落建立地名連結
         if (!pText.includes("行政區有") && !pText.includes("蕃社有")) {
             return;
         }
@@ -717,12 +684,78 @@ window.addEventListener("resize", updateConnectionLine);
 
 map.on("load", async function() {
     try {
-        const [keepData, semiData, removeData, boundaryData] = await Promise.all([
+        const [keepData, semiData, removeData, boundsData] = await Promise.all([
             loadJSON(DATA_FILES.keep),
             loadJSON(DATA_FILES.semi),
             loadJSON(DATA_FILES.remove),
-            loadJSON(DATA_FILES.boundary)
+            loadJSON(DATA_FILES.bounds) // 載入調查區界資料
         ]);
+
+        // 計算大武調查區的 Bounding Box 並自動縮放過去
+        if (boundsData && boundsData.features) {
+            const dawuFeature = boundsData.features.find(f => {
+                const props = f.properties;
+                if (!props) return false;
+                for (let key in props) {
+                    if (String(props[key]).includes("大武")) return true;
+                }
+                return false;
+            });
+
+            if (dawuFeature) {
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                function extractCoords(coords) {
+                    if (typeof coords[0] === 'number') {
+                        if (coords[0] < minX) minX = coords[0];
+                        if (coords[1] < minY) minY = coords[1];
+                        if (coords[0] > maxX) maxX = coords[0];
+                        if (coords[1] > maxY) maxY = coords[1];
+                    } else {
+                        coords.forEach(extractCoords);
+                    }
+                }
+                if (dawuFeature.geometry && dawuFeature.geometry.coordinates) {
+                    extractCoords(dawuFeature.geometry.coordinates);
+                    if (minX !== Infinity) {
+                        // 以大武調查區的範圍縮放，留點 Padding 避免太滿
+                        map.fitBounds([[minX, minY], [maxX, maxY]], { padding: 40, duration: 0 });
+                    }
+                }
+            }
+        }
+
+        // ================= 新增：調查區界 圖層設定 =================
+        map.addSource("bounds-source", { type: "geojson", data: boundsData });
+
+        // 黑框刷淡，無填滿
+        map.addLayer({
+            id: "bounds-outline",
+            type: "line",
+            source: "bounds-source",
+            paint: {
+                "line-color": "#000000",
+                "line-width": 1.5,
+                "line-opacity": 0.35 // 刷淡黑框
+            }
+        });
+
+        // 顯示調查區名稱 (自動抓取可能的屬性名稱)
+        map.addLayer({
+            id: "bounds-label",
+            type: "symbol",
+            source: "bounds-source",
+            layout: {
+                "text-field": ["coalesce", ["get", "地名"], ["get", "name"], ["get", "Name"], ["get", "調查區"], ["get", "調查區名"], ["get", "區名"], "未命名"],
+                "text-size": 14,
+                "text-anchor": "center"
+            },
+            paint: {
+                "text-color": "#222222",
+                "text-halo-color": "#ffffff",
+                "text-halo-width": 2
+            }
+        });
+        // ==========================================================
 
         const rawFeatures = [
             ...(keepData.features || []),
@@ -738,43 +771,6 @@ map.on("load", async function() {
 
         buildPlaceIndex();
         findPlaceOccurrences();
-
-        // 載入調查區界範圍，自動對齊全貌
-        const boundaryBounds = getGeoJSONBounds(boundaryData);
-        if (boundaryBounds) {
-            map.fitBounds(boundaryBounds, { padding: 40, duration: 0 });
-        }
-
-        // 添加調查區界圖層 (黑框無填滿 + Label)
-        map.addSource("boundary-source", { type: "geojson", data: boundaryData });
-        map.addLayer({
-            id: "boundary-layer",
-            type: "fill",
-            source: "boundary-source",
-            paint: { "fill-color": "transparent", "fill-opacity": 0 }
-        });
-        map.addLayer({
-            id: "boundary-outline",
-            type: "line",
-            source: "boundary-source",
-            paint: { "line-color": "#000000", "line-width": 2 }
-        });
-        map.addLayer({
-            id: "boundary-label",
-            type: "symbol",
-            source: "boundary-source",
-            layout: {
-                "text-field": ["coalesce", ["get", "地名"], ["get", "name"], ["get", "LABEL"], ""],
-                "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
-                "text-size": 13,
-                "text-anchor": "center"
-            },
-            paint: {
-                "text-color": "#000000",
-                "text-halo-color": "#ffffff",
-                "text-halo-width": 1.5
-            }
-        });
 
         map.addSource("all-places-source", {
             type: "geojson",
@@ -827,23 +823,20 @@ map.on("load", async function() {
             paint: { "line-color": "#b71c1c", "line-width": 1.5 }
         });
 
-        // 點擊/懸停高亮圖層（無填滿桃紅色，改為黃色外框）
-        map.addLayer({
-            id: "place-highlight",
-            type: "fill",
-            source: "all-places-source",
-            paint: { "fill-color": "transparent", "fill-opacity": 0 },
-            layout: { visibility: "none" }
-        });
+        // 修改點：保留黃色外框，移除 fill 填滿效果
         map.addLayer({
             id: "place-highlight-outline",
             type: "line",
             source: "all-places-source",
-            paint: { "line-color": "#ffea00", "line-width": 3.5 },
+            paint: { 
+                "line-color": "#ffee00", // 黃色外框
+                "line-width": 4 
+            },
             layout: { visibility: "none" }
         });
 
-        const clickableLayers = ["keep-layer", "semi-layer", "remove-layer", "place-highlight"];
+        // 注意：移除 place-highlight 層後，clickableLayers 的互動對象需更新
+        const clickableLayers = ["keep-layer", "semi-layer", "remove-layer"];
         map.on("click", function(e) {
             const features = map.queryRenderedFeatures(e.point, { layers: clickableLayers });
             if (features.length === 0) return;
