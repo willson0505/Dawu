@@ -265,7 +265,7 @@ body {
 </p>
 
 <p>
-林況方面，原生林約佔全林地面積 7 成，其餘大部分的土地為蕃人開墾地，其中一半以上為叢林。9 成的原se林為闊葉樹的雜木林，但到了大武山附近的高地，有由自然生長的臺灣鐵杉、紅檜而成的針闊葉混合林。接著，就樹木生長情形來看，雖然海岸附近的樹木生長情形不佳，但隨著遠離海岸，情形逐漸變好。
+林況方面，原生林約佔全林地面積 7 成，其餘大部分的土地為蕃人開墾地，其中一半以上為叢林。9 成的原始林為闊葉樹的雜木林，但到了大武山附近的高地，有由自然生長的臺灣鐵杉、紅檜而成的針闊葉混合林。接著，就樹木生長情形來看，雖然海岸附近的樹木生長情形不佳，但隨著遠離海岸，情形逐漸變好。
 </p>
 
 <p>
@@ -273,7 +273,7 @@ body {
 </p>
 
 <p>
-行政區有太麻里、羅打結、鴨子蘭、文里格、猴子蘭、虷仔崙、大武窟、察腊密、打腊打蘭、大武、鴿子籠、大烏萬、拔子洞、獅子獅、大竹高、甘那壁、大得吉，以上 17 社，人口 3,527 人。
+行政區有太麻里、羅打結、鴨子蘭、文里格、猴子蘭、虷仔崙、大武窟、察腊密、打腊打蘭、大武、鴿子籠、大鳥萬、拔子洞、獅子獅、大竹高、甘那壁、大得吉，以上 17 社，人口 3,527 人。
 </p>
 
 <p>
@@ -353,9 +353,9 @@ viewToggleBtn.addEventListener("click", () => {
     is3DMode = !is3DMode;
     if (is3DMode) {
         map.easeTo({
-            pitch: 60,
-            bearing: -20,
-            duration: 1000,
+            pitch: 65,
+            bearing: -30,
+            duration: 1200,
             essential: true
         });
         viewToggleBtn.textContent = "切換至 2D 視角";
@@ -363,7 +363,7 @@ viewToggleBtn.addEventListener("click", () => {
         map.easeTo({
             pitch: 0,
             bearing: 0,
-            duration: 1000,
+            duration: 1200,
             essential: true
         });
         viewToggleBtn.textContent = "切換至 3D 視角";
@@ -387,7 +387,6 @@ function cleanString(str) {
         .trim();
 }
 
-/* 歷史地名異體字/別名對照正規化（解決文章新修地名與地圖原始屬性不同步的問題） */
 function normalizePlaceName(name) {
     if (!name) return "";
     let cleaned = String(name).trim();
@@ -397,7 +396,9 @@ function normalizePlaceName(name) {
         "打腊打蘭": "打暗打蘭",
         "甘那壁": "甘壁壁",
         "阿塱衛": "阿聖衛",
-        "阿塱衛社": "阿聖衛社"
+        "阿塱衛社": "阿聖衛社",
+        "姑子崙": "姑子崙",
+        "讀古梧": "讀古梧"
     };
     if (aliasMap[cleaned]) {
         cleaned = aliasMap[cleaned];
@@ -614,7 +615,24 @@ function findPlaceOccurrences() {
         searchTerms.push(item.rawName);
     });
 
-    const extraKeywords = ["タバカス", "Tabakasu", "ルラクシ", "Rurakushi", "ビララウ", "Birarau", "パウモリ", "Paumori", "チヨコゾル", "Chiyokozoru", "ツダカス", "Tsudakasu", "トビロウ", "Tobirou", "カラタラン", "Karataran", "マリドツプ", "Maridotsupu", "ポケツ", "Poketsu", "カアロワン", "Kaarowan", "トロコワン", "Torokowan", "パシヨロ", "Pashiyoro", "マリプル", "Maripuru", "シヨモル", "Shiyomoru", "トコブルイピリ", "Tokoburuipiri", "シヤコプ", "Shiyakopu", "トコホル", "Tokohoru", "チヨカクライ", "Chiyokakurai", "テババオ", "Tebabao", "テノコ", "Tenoko", "タバカス", "Tabakasu", "カクブラン", "Kakuburan", "ポリガツト", "Porigatsuto", "タリリク", "Taririku", "キナバリヤン", "Kinabariyan", "クダカス", "Kudakasu", "トアバル", "Toabaru", "トアカウ", "Toakau", "ハイブカイ", "Haibukai", "ラリバ", "Rariba", "トコトコワン", "Tokotokowan", "カケラブチャン", "Kakerabuchiyan", "チヨコプリ", "Chokoburi", "チヤチヤガトワン", "Chiyachiyagatowan", "太麻里", "羅打結", "鴨子蘭", "文里格", "猴子蘭", "虷仔崙", "大武窟", "察腊密", "打腊打蘭", "大武", "鴿子籠", "大烏萬", "拔子洞", "獅子獅", "大竹高", "甘那壁", "大得吉", "大板鹿社", "阿塱衛社", "出水坡社", "近黃"];
+    const extraKeywords = [
+        "タバカス", "Tabakasu", "ルラクシ", "Rurakushi", "ビララウ", "Birarau", 
+        "パウモリ", "Paumori", "チヨコゾル", "Chiyokozoru", "ツダカス", "Tsudakasu", 
+        "トビロウ", "Tobirou", "カラタラン", "Karataran", "マリドツプ", "Maridotsupu", 
+        "ポケツ", "Poketsu", "カアロワン", "Kaarowan", "トロコワン", "Torokowan", 
+        "パシヨロ", "Pashiyoro", "マリプル", "Maripuru", "シヨモル", "Shiyomoru", 
+        "トコブルイピリ", "Tokoburuipiri", "シヤコプ", "Shiyakopu", "トコホル", "Tokohoru", 
+        "チヨカクライ", "Chiyokakurai", "テババオ", "Tebabao", "テノコ", "Tenoko", 
+        "タバカス", "Tabakasu", "カクブラン", "Kakuburan", "ポリガツト", "Porigatsuto", 
+        "タリリク", "Taririku", "キナバリyan", "Kinabariyan", "クダカス", "Kudakasu", 
+        "トアバル", "Toabaru", "トアカウ", "Toakau", "ハイブカイ", "Haibukai", 
+        "ラリバ", "Rariba", "トコトコワン", "Tokotokowan", "カケラブチャン", "Kakerabuchiyan", 
+        "チヨコプリ", "Chokoburi", "チヤチヤガトワン", "Chiyachiyagatowan", 
+        "太麻里", "羅打結", "鴨子蘭", "文里格", "猴子蘭", "虷仔崙", "大武窟", 
+        "察腊密", "打腊打蘭", "大武", "鴿子籠", "大鳥萬", "拔子洞", "獅子獅", 
+        "大竹高", "甘那壁", "大得吉", "大板鹿社", "阿塱衛社", "出水坡社", "近黃",
+        "姑子崙社", "讀古梧社", "姑子崙", "讀古梧"
+    ];
     
     searchTerms = [...new Set([...searchTerms, ...extraKeywords])];
     searchTerms.sort((a, b) => b.length - a.length);
@@ -752,6 +770,17 @@ window.addEventListener("resize", updateConnectionLine);
 
 map.on("load", async function() {
     try {
+        map.addSource('terrain-source', {
+            type: 'raster-dem',
+            tiles: [
+                'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'
+            ],
+            tileSize: 256,
+            maxzoom: 15,
+            encoding: 'terrarium'
+        });
+        map.setTerrain({ source: 'terrain-source', exaggeration: 1.5 });
+
         const [keepData, semiData, removeData, boundsData] = await Promise.all([
             loadJSON(DATA_FILES.keep),
             loadJSON(DATA_FILES.semi),
