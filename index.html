@@ -125,6 +125,33 @@ body {
     font-weight: bold;
 }
 
+/* 2D/3D 切換按鈕樣式 */
+#view-toggle-btn {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    z-index: 10;
+    padding: 9px 14px;
+    background: rgba(255, 255, 255, 0.93);
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+    font-family: "Microsoft JhengHei", sans-serif;
+    font-size: 14px;
+    font-weight: bold;
+    color: #24352a;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+}
+
+#view-toggle-btn:hover {
+    background: rgba(240, 240, 240, 0.95);
+}
+
+#view-toggle-btn:active {
+    transform: scale(0.96);
+}
+
 #loading {
     position: absolute;
     top: 50%;
@@ -246,11 +273,11 @@ body {
 </p>
 
 <p>
-行政區有太麻里、羅打結、鴨子蘭、文里格、猴子蘭、蚶子崙、大武窟、察暗密、打暗打蘭、大武、鴿子籠、大烏萬、拔子洞、獅子獅、大竹高、甘壁壁、大得吉，以上 17 社，人口 3,527 人。
+行政區有太麻里、羅打結、鴨子蘭、文里格、猴子蘭、虷仔崙、大武窟、察腊密、打腊打蘭、大武、鴿子籠、大烏萬、拔子洞、獅子獅、大竹高、甘那壁、大得吉，以上 17 社，人口 3,527 人。
 </p>
 
 <p>
-蕃社有「ルラクシ」（Rurakushi）社、「ビララウ」（Birarau）社、「パウモリ」（Paumori）社、斗里斗里社、「チヨコゾル」（Chiyokozoru）社、近黃社、「ツダカス」（Tsudakasu）社、「トビロウ」（Tobirou）社、那保那保社、「カラタラン」（Karataran）社、「マリドツプ」（Maridotsupu）社、「ポケツ」（Poketsu）社、「カアロワン」（Kaarowan）社、「トロコワン」（Torokowan）社、「パシヨロ」（Pashiyoro）社、「マリプル」（Maripuru）社、「シヨモル」（Shiyomoru）社、讀古梧社、「トコブルイピリ」（Tokoburuipiri）社、「シヤコプ」（Shiyakopu）社、「トコホル」（10Tokohoru）社、姑子崙社、「チヨカクライ」（Chiyokakurai）社、東「テババオ」（Tebabao）社、西「テババオ」（Tebabao）社、「テノコ」（Tenoko）社、「タバカス」（Tabakasu）社、「カクブラン」（Kakuburan）社、「ポリガツト」（Porigatsuto）社、「タリリク」（Taririku）社、「キナバリヤン」（Kinabariyan）社、「クダカス」（Kudakasu）社、「トアバル」（Toabaru）社、「トアカウ」（Toakau）社、「ハイブカイ」（Haibukai）社、「ラリバ」（Rariba）社、「トコトコワン」（Tokotokowan）社、「カケラブチャン」（Kakerabuchiyan）社、大板鹿社、「チヨコプリ」（Chokoburi）社、「チヤチヤガトワン」（Chiyachiyagatowan）社、阿聖衛社、出水坡社，以上 43 社，人口 5,059 人。
+蕃社有「ルラクシ」（Rurakushi）社、「ビララウ」（Birarau）社、「パウモリ」（Paumori）社、斗里斗里社、「チヨコゾル」（Chiyokozoru）社、近黃社、「ツダカス」（Tsudakasu）社、「トビロウ」（Tobirou）社、那保那保社、「カラタラン」（Karataran）社、「マリドツプ」（Maridotsupu）社、「ポケツ」（Poketsu）社、「カアロワン」（Kaarowan）社、「トロコワン」（Torokowan）社、「パシヨロ」（Pashiyoro）社、「マリプル」（Maripuru）社、「シヨモル」（Shiyomoru）社、讀古梧社、「トコブルイピリ」（Tokoburuipiri）社、「シヤコプ」（Shiyakopu）社、「トコホル」（Tokohoru）社、姑子崙社、「チヨカクライ」（Chiyokakurai）社、東「テババオ」（Tebabao）社、西「テババオ」（Tebabao）社、「テノコ」（Tenoko）社、「タバカス」（Tabakasu）社、「カクブラン」（Kakuburan）社、「ポリガツト」（Porigatsuto）社、「タリリク」（Taririku）社、「キナバリヤン」（Kinabariyan）社、「クダカス」（Kudakasu）社、「トアバル」（Toabaru）社、「トアカウ」（Toakau）社、「ハイブカイ」（Haibukai）社、「ラリバ」（Rariba）社、「トコトコワン」（Tokotokowan）社、「カケラブチャン」（Kakerabuchiyan）社、大板鹿社、「チヨコプリ」（Chokoburi）社、「チヤチヤガトワン」（Chiyachiyagatowan）社、阿塱衛社、出水坡社，以上 43 社，人口 5,059 人。
 </p>
 
 <h2 class="paper-heading">貳、調查概要與區分成果</h2>
@@ -273,6 +300,7 @@ body {
 
 <section id="map-container">
 <div id="map-title">大武林野調查地圖</div>
+<button id="view-toggle-btn">切換至 3D 視角</button>
 <div id="map"></div>
 <div id="loading">正在載入地圖資料……</div>
 <div id="error"></div>
@@ -307,7 +335,7 @@ const DATA_FILES = {
     keep: "./大武要存置圖層.geojson",
     semi: "./大武準要存置圖層.geojson",
     remove: "./大武不要存置圖層.geojson",
-    bounds: "./調查區界.geojson" // 新增調查區界圖層
+    bounds: "./調查區界.geojson"
 };
 
 let placeFeatures = [];
@@ -317,6 +345,30 @@ let activeElement = null;
 let isLocked = false;
 let lockedElement = null;
 const activePopup = new maplibregl.Popup({ closeButton: true, closeOnClick: true });
+
+let is3DMode = false;
+const viewToggleBtn = document.getElementById("view-toggle-btn");
+
+viewToggleBtn.addEventListener("click", () => {
+    is3DMode = !is3DMode;
+    if (is3DMode) {
+        map.easeTo({
+            pitch: 60,
+            bearing: -20,
+            duration: 1000,
+            essential: true
+        });
+        viewToggleBtn.textContent = "切換至 2D 視角";
+    } else {
+        map.easeTo({
+            pitch: 0,
+            bearing: 0,
+            duration: 1000,
+            essential: true
+        });
+        viewToggleBtn.textContent = "切換至 3D 視角";
+    }
+});
 
 async function loadJSON(url) {
     const response = await fetch(url, { cache: "no-cache" });
@@ -335,6 +387,24 @@ function cleanString(str) {
         .trim();
 }
 
+/* 歷史地名異體字/別名對照正規化（解決文章新修地名與地圖原始屬性不同步的問題） */
+function normalizePlaceName(name) {
+    if (!name) return "";
+    let cleaned = String(name).trim();
+    const aliasMap = {
+        "虷仔崙": "蚶子崙",
+        "察腊密": "察暗密",
+        "打腊打蘭": "打暗打蘭",
+        "甘那壁": "甘壁壁",
+        "阿塱衛": "阿聖衛",
+        "阿塱衛社": "阿聖衛社"
+    };
+    if (aliasMap[cleaned]) {
+        cleaned = aliasMap[cleaned];
+    }
+    return cleanString(cleaned);
+}
+
 function getGeoPlaceName(feature) {
     if (!feature || !feature.properties) return "";
     const p = feature.properties;
@@ -350,8 +420,8 @@ function getGeoPlaceName(feature) {
 }
 
 function isMatch(textTerm, geoName) {
-    const cleanText = cleanString(textTerm);
-    const cleanGeo = cleanString(geoName);
+    const cleanText = normalizePlaceName(textTerm);
+    const cleanGeo = normalizePlaceName(geoName);
     if (!cleanText || !cleanGeo) return false;
     if (cleanGeo === cleanText || cleanGeo.includes(cleanText) || cleanText.includes(cleanGeo)) {
         return true;
@@ -367,7 +437,7 @@ function buildPlaceIndex() {
         return {
             feature: f,
             rawName: rawName,
-            cleanName: cleanString(rawName)
+            cleanName: normalizePlaceName(rawName)
         };
     }).filter(item => item.rawName !== "");
 }
@@ -411,7 +481,6 @@ function getFeaturesGroupInfo(features) {
     };
 }
 
-// 修改點：現在只會顯示黃色外框，不會顯示粉紅色填滿
 function highlightFeatures(features) {
     if (!features || features.length === 0) {
         clearHighlight();
@@ -545,7 +614,7 @@ function findPlaceOccurrences() {
         searchTerms.push(item.rawName);
     });
 
-    const extraKeywords = ["タバカス", "Tabakasu", "ルラクシ", "Rurakushi", "ビララウ", "Birarau", "パウモリ", "Paumori", "チヨコゾル", "Chiyokozoru", "ツダカス", "Tsudakasu", "トビロウ", "Tobirou", "カラタラン", "Karataran", "マリドツプ", "Maridotsupu", "ポケツ", "Poketsu", "カアロワン", "Kaarowan", "トロコワン", "Torokowan", "パシヨロ", "Pashiyoro", "マリプル", "Maripuru", "シヨモル", "Shiyomoru", "トコブルイピリ", "Tokoburuipiri", "シヤコプ", "Shiyakopu", "トコホル", "Tokohoru", "チヨカクライ", "Chiyokakurai", "テババオ", "Tebabao", "テノコ", "Tenoko", "タバカス", "Tabakasu", "カクブラン", "Kakuburan", "ポリガツト", "Porigatsuto", "タリリク", "Taririku", "キナバリヤン", "Kinabariyan", "クダカス", "Kudakasu", "トアバル", "Toabaru", "トアカウ", "Toakau", "ハイブカイ", "Haibukai", "ラリバ", "Rariba", "トコトコワン", "Tokotokowan", "カケラブチャン", "Kakerabuchiyan", "チヨコプリ", "Chokoburi", "チヤチヤガトワン", "Chiyachiyagatowan", "太麻里", "羅打結", "鴨子蘭", "文里格", "猴子蘭", "蚶子崙", "大武窟", "察暗密", "打暗打蘭", "大武", "鴿子籠", "大烏萬", "拔子洞", "獅子獅", "大竹高", "甘壁壁", "大得吉"];
+    const extraKeywords = ["タバカス", "Tabakasu", "ルラクシ", "Rurakushi", "ビララウ", "Birarau", "パウモリ", "Paumori", "チヨコゾル", "Chiyokozoru", "ツダカス", "Tsudakasu", "トビロウ", "Tobirou", "カラタラン", "Karataran", "マリドツプ", "Maridotsupu", "ポケツ", "Poketsu", "カアロワン", "Kaarowan", "トロコワン", "Torokowan", "パシヨロ", "Pashiyoro", "マリプル", "Maripuru", "シヨモル", "Shiyomoru", "トコブルイピリ", "Tokoburuipiri", "シヤコプ", "Shiyakopu", "トコホル", "Tokohoru", "チヨカクライ", "Chiyokakurai", "テババオ", "Tebabao", "テノコ", "Tenoko", "タバカス", "Tabakasu", "カクブラン", "Kakuburan", "ポリガツト", "Porigatsuto", "タリリク", "Taririku", "キナバリヤン", "Kinabariyan", "クダカス", "Kudakasu", "トアバル", "Toabaru", "トアカウ", "Toakau", "ハイブカイ", "Haibukai", "ラリバ", "Rariba", "トコトコワン", "Tokotokowan", "カケラブチャン", "Kakerabuchiyan", "チヨコプリ", "Chokoburi", "チヤチヤガトワン", "Chiyachiyagatowan", "太麻里", "羅打結", "鴨子蘭", "文里格", "猴子蘭", "虷仔崙", "大武窟", "察腊密", "打腊打蘭", "大武", "鴿子籠", "大烏萬", "拔子洞", "獅子獅", "大竹高", "甘那壁", "大得吉", "大板鹿社", "阿塱衛社", "出水坡社", "近黃"];
     
     searchTerms = [...new Set([...searchTerms, ...extraKeywords])];
     searchTerms.sort((a, b) => b.length - a.length);
@@ -553,7 +622,6 @@ function findPlaceOccurrences() {
     const paragraphs = story.querySelectorAll("p");
     paragraphs.forEach(p => {
         const pText = p.textContent;
-        // 限制只在清單段落建立地名連結
         if (!pText.includes("行政區有") && !pText.includes("蕃社有")) {
             return;
         }
@@ -688,10 +756,9 @@ map.on("load", async function() {
             loadJSON(DATA_FILES.keep),
             loadJSON(DATA_FILES.semi),
             loadJSON(DATA_FILES.remove),
-            loadJSON(DATA_FILES.bounds) // 載入調查區界資料
+            loadJSON(DATA_FILES.bounds)
         ]);
 
-        // 計算大武調查區的 Bounding Box 並自動縮放過去
         if (boundsData && boundsData.features) {
             const dawuFeature = boundsData.features.find(f => {
                 const props = f.properties;
@@ -717,17 +784,14 @@ map.on("load", async function() {
                 if (dawuFeature.geometry && dawuFeature.geometry.coordinates) {
                     extractCoords(dawuFeature.geometry.coordinates);
                     if (minX !== Infinity) {
-                        // 以大武調查區的範圍縮放，留點 Padding 避免太滿
                         map.fitBounds([[minX, minY], [maxX, maxY]], { padding: 40, duration: 0 });
                     }
                 }
             }
         }
 
-        // ================= 新增：調查區界 圖層設定 =================
         map.addSource("bounds-source", { type: "geojson", data: boundsData });
 
-        // 黑框刷淡，無填滿
         map.addLayer({
             id: "bounds-outline",
             type: "line",
@@ -735,11 +799,10 @@ map.on("load", async function() {
             paint: {
                 "line-color": "#000000",
                 "line-width": 1.5,
-                "line-opacity": 0.35 // 刷淡黑框
+                "line-opacity": 0.35
             }
         });
 
-        // 顯示調查區名稱 (自動抓取可能的屬性名稱)
         map.addLayer({
             id: "bounds-label",
             type: "symbol",
@@ -755,7 +818,6 @@ map.on("load", async function() {
                 "text-halo-width": 2
             }
         });
-        // ==========================================================
 
         const rawFeatures = [
             ...(keepData.features || []),
@@ -823,19 +885,17 @@ map.on("load", async function() {
             paint: { "line-color": "#b71c1c", "line-width": 1.5 }
         });
 
-        // 修改點：保留黃色外框，移除 fill 填滿效果
         map.addLayer({
             id: "place-highlight-outline",
             type: "line",
             source: "all-places-source",
             paint: { 
-                "line-color": "#ffee00", // 黃色外框
+                "line-color": "#ffee00", 
                 "line-width": 4 
             },
             layout: { visibility: "none" }
         });
 
-        // 注意：移除 place-highlight 層後，clickableLayers 的互動對象需更新
         const clickableLayers = ["keep-layer", "semi-layer", "remove-layer"];
         map.on("click", function(e) {
             const features = map.queryRenderedFeatures(e.point, { layers: clickableLayers });
