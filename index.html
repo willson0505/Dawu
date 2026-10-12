@@ -2108,6 +2108,26 @@ input[type="checkbox"] {
     return biggest[0] && biggest[0].length ? polyLabel(biggest) : null;
   }
 
+  // 幾何的外框總面積（只用來比較大小，單位無所謂）
+  function geometryArea(geometry) {
+    if (!geometry) return 0;
+
+    let polygons = [];
+    if (geometry.type === 'Polygon') polygons = [geometry.coordinates];
+    else if (geometry.type === 'MultiPolygon') polygons = geometry.coordinates;
+
+    let total = 0;
+    polygons.forEach(poly => {
+      const ring = poly[0] || [];
+      let a = 0;
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        a += (ring[j][0] + ring[i][0]) * (ring[j][1] - ring[i][1]);
+      }
+      total += Math.abs(a / 2);
+    });
+    return total;
+  }
+
 
   /* =======================================================
      外觀（主題、文字大小）：不需要地圖，先套用
@@ -3240,8 +3260,16 @@ input[type="checkbox"] {
                 map.getLayer('forest-hover-border') ? 'forest-hover-border' : undefined
               );
 
-              // 每個調查區標示區名（取自 layer 欄位）
+              // 每個調查區名稱只標一次：同名的好幾塊裡，標在面積最大的那一塊
+              const biggestByName = new Map();
               feats.forEach(f => {
+                const name = f.properties.__label__;
+                const area = geometryArea(f.geometry);
+                const cur = biggestByName.get(name);
+                if (!cur || area > cur.area) biggestByName.set(name, { feature: f, area });
+              });
+
+              biggestByName.forEach(({ feature: f }) => {
                 const pt = labelPoint(f.geometry);
                 if (!pt) return;
 
