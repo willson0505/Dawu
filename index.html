@@ -1322,24 +1322,27 @@ input[type="checkbox"] {
   display: block;
 }
 
-/* 南庄導讀：每個段落一張卡片，捲到該段時地圖才切換 */
+/* 南庄導讀：段落連續排列（沒有空白），左側色條標示目前段落；捲到該段時地圖才切換 */
 .step-section {
-  margin: 0 0 70vh;
-  padding: 22px 24px 8px;
+  margin: 0;
+  padding: 10px 24px 2px;
   background: var(--bg);
-  border-radius: 8px;
   border-left: 5px solid var(--border);
-  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.06);
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  transition: border-color 0.3s ease;
+}
+
+.step-section:first-of-type {
+  padding-top: 22px;
+  border-top-left-radius: 8px;
+}
+
+.step-section:last-of-type {
+  padding-bottom: 24px;
+  border-bottom-left-radius: 8px;
 }
 
 .step-section.is-active {
   border-left-color: var(--primary);
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
-}
-
-.step-section:last-child {
-  margin-bottom: 40vh;
 }
 
 .footnote-ref {
@@ -1615,19 +1618,11 @@ input[type="checkbox"] {
 
         <button class="story-card" data-story="dawu">
           <strong>大武調查區概覽</strong>
-          <span>大武林野調查區的範圍、區分結果與蕃社；文中地名可以在地圖上標出位置</span>
         </button>
 
         <button class="story-card" data-story="nanzhuang">
           <strong>《日治時期森林計畫事業區分調查史料》解讀──以南庄調查區為例</strong>
-          <span>洪廣冀　·　往下捲動，地圖會依段落切換南庄的圖層與視角</span>
         </button>
-
-        <button class="story-card story-card-close" data-story="none">
-          關閉導讀，回到大地圖
-        </button>
-
-        <div class="search-hint">選擇「南庄」這一篇時，才會載入南庄的林野圖層；離開這一篇後，圖臺會回復原貌。</div>
 
       </div>
 
@@ -1912,7 +1907,7 @@ input[type="checkbox"] {
         <div class="section-title">操作說明</div>
 
         <div class="instruction">
-          <div><b>① 導讀</b><span>選擇要閱讀的導讀文章（大武調查區概覽、南庄調查區解讀）；也可以關閉導讀，讓地圖全幅顯示。</span></div>
+          <div><b>① 導讀</b><span>選擇要閱讀的導讀文章（大武調查區概覽、南庄調查區解讀）；按選單右上角的 × 可以關閉導讀，讓地圖全幅顯示。</span></div>
           <div><b>② 導讀中的地名</b><span>滑過（手機請點選）有虛線底線的地名，地圖會標出位置；點選可鎖定，按 Esc 解除。</span></div>
           <div><b>③ 圖層</b><span>切換底圖，開啟或關閉林野、調查區界與歷史地圖，並調整透明度。</span></div>
           <div><b>④ 搜尋</b><span>查找林野資料，點選結果會飛到該處。</span></div>
@@ -3322,7 +3317,12 @@ input[type="checkbox"] {
       });
     });
 
-    $('panel-close').addEventListener('click', closePanel);
+    // 導讀選單上的 ×：同時關閉導讀、回到大地圖（只想收起選單、繼續閱讀的話，再按一次工具列的「導讀」即可）
+    $('panel-close').addEventListener('click', () => {
+      const onStoryPage = !$('panel-story').classList.contains('hidden');
+      if (onStoryPage && currentStory) setStory(null);
+      closePanel();
+    });
 
 
     /* ---------------------------------------------------
