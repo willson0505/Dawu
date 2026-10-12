@@ -1305,8 +1305,15 @@ input[type="checkbox"] {
 .story-card-close {
   margin-top: 16px;
   text-align: center;
-  font-size: calc(13px * var(--ui-scale));
-  color: var(--subtext);
+  font-size: calc(14px * var(--ui-scale));
+  font-weight: 700;
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+/* 沒有在讀任何一篇時，不需要「離開導讀」 */
+#app:not([data-story="dawu"]):not([data-story="nanzhuang"]) .story-card-close {
+  display: none;
 }
 
 /* 圖層面板：大武與南庄的林野圖層，依目前導讀切換 */
@@ -1623,6 +1630,8 @@ input[type="checkbox"] {
         <button class="story-card" data-story="nanzhuang">
           <strong>《日治時期森林計畫事業區分調查史料》解讀──以南庄調查區為例</strong>
         </button>
+
+        <button class="story-card story-card-close" data-story="none">離開導讀</button>
 
       </div>
 
