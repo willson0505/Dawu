@@ -1394,6 +1394,19 @@ input[type="checkbox"] {
     0 0 6px #fff, 0 0 6px #fff;
 }
 
+
+/* 圖資來源：展開後內容較長，限制寬度並放寬行距 */
+.maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-inner {
+  max-width: min(520px, calc(100vw - 100px));
+  padding: 8px 12px;
+  line-height: 1.75;
+  font-size: 12px;
+}
+
+.maplibregl-ctrl-attrib-inner a {
+  color: inherit;
+}
+
   </style>
 </head>
 <body>
@@ -1927,9 +1940,11 @@ input[type="checkbox"] {
         <div class="section-title credit-title">資料來源</div>
 
         <div class="instruction">
-          <div><b>林野區分</b><span>林業及自然保育署典藏《要存置林野及準要存置林野調書．地圖》</span></div>
+          <div><b>林野區分</b><span>農業部林業及自然保育署《日治時期森林計畫事業區分調查史料：要存置林野及準要存置林野調書．地圖集》</span></div>
           <div><b>歷史地圖</b><span>中央研究院人文社會科學研究中心 GIS 專題中心「臺灣百年歷史地圖」</span></div>
-          <div><b>底圖與地形</b><span>OpenStreetMap、內政部國土測繪中心、OpenTopoMap、Esri；地形高程 Mapzen / AWS Terrain Tiles</span></div>
+          <div><b>底圖</b><span>OpenStreetMap、內政部國土測繪中心（臺灣通用電子地圖）、OpenTopoMap、Esri</span></div>
+          <div><b>地形</b><span>Mapzen / AWS Terrain Tiles（整合 NASA SRTM、USGS 等公開高程資料）</span></div>
+          <div><b>地圖引擎</b><span>MapLibre GL JS</span></div>
         </div>
 
       </div>
@@ -2040,21 +2055,31 @@ input[type="checkbox"] {
     tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
     tileSize: 256,
     maxzoom: 15,
-    encoding: 'terrarium',
-    attribution: '地形：Mapzen / AWS Terrain Tiles'
+    encoding: 'terrarium'
   };
+
+  // 右下角「圖資來源」展開後顯示的完整清單（所有串接的外部圖資都列在這裡）
+  const ATTRIBUTION_LINES = [
+    '底圖：<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>、' +
+      '<a href="https://maps.nlsc.gov.tw/" target="_blank" rel="noopener">© 內政部國土測繪中心（臺灣通用電子地圖）</a>、' +
+      '<a href="https://opentopomap.org/" target="_blank" rel="noopener">© OpenTopoMap</a>（CC-BY-SA）、' +
+      '<a href="https://www.esri.com/" target="_blank" rel="noopener">© Esri, Maxar, Earthstar Geographics 及 GIS 使用者社群</a>',
+    '地形高程與暈渲：<a href="https://registry.opendata.aws/terrain-tiles/" target="_blank" rel="noopener">Mapzen / AWS Terrain Tiles</a>（整合 NASA SRTM、USGS 等公開高程資料）',
+    '歷史地圖：<a href="https://gis.sinica.edu.tw/" target="_blank" rel="noopener">中央研究院人文社會科學研究中心 GIS 專題中心</a>「臺灣百年歷史地圖」',
+    '林野資料：林業及自然保育署《要存置林野及準要存置林野調書．地圖》',
+    '南庄導讀：洪廣冀《日治時期森林計畫事業區分調查史料》解讀──以南庄調查區為例',
+    '地圖引擎：<a href="https://maplibre.org/" target="_blank" rel="noopener">MapLibre GL JS</a>'
+  ];
 
   // 底圖（都是公開的 XYZ 圖磚）。第一個為預設。
   const BASEMAPS = {
     osm: {
       tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-      maxzoom: 19,
-      attribution: '© OpenStreetMap contributors'
+      maxzoom: 19
     },
     nlsc: {
       tiles: ['https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}'],
-      maxzoom: 19,
-      attribution: '© 內政部國土測繪中心'
+      maxzoom: 19
     },
     topo: {
       tiles: [
@@ -2062,13 +2087,11 @@ input[type="checkbox"] {
         'https://b.tile.opentopomap.org/{z}/{x}/{y}.png',
         'https://c.tile.opentopomap.org/{z}/{x}/{y}.png'
       ],
-      maxzoom: 17,
-      attribution: '© OpenTopoMap (CC-BY-SA), © OpenStreetMap contributors'
+      maxzoom: 17
     },
     sat: {
       tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-      maxzoom: 19,
-      attribution: '© Esri, Maxar, Earthstar Geographics'
+      maxzoom: 19
     }
   };
   const DEFAULT_BASEMAP = 'osm';
@@ -2627,8 +2650,7 @@ input[type="checkbox"] {
       type: 'raster',
       tiles: BASEMAPS[key].tiles,
       tileSize: 256,
-      maxzoom: BASEMAPS[key].maxzoom,
-      attribution: BASEMAPS[key].attribution
+      maxzoom: BASEMAPS[key].maxzoom
     });
 
     const map = new maplibregl.Map({
@@ -2650,12 +2672,29 @@ input[type="checkbox"] {
     map.addControl(
       new maplibregl.AttributionControl({
         compact: true,
-        customAttribution: [
-          '林野資料：林業及自然保育署',
-          '歷史地圖：中央研究院人社中心 GIS 專題中心'
-        ]
+        customAttribution: ATTRIBUTION_LINES
       })
     );
+
+    // 「圖資來源」預設收合，點右下角的 ⓘ 才展開
+    // （MapLibre 的精簡模式第一次會自動展開，這裡收起來）
+    (function collapseAttribution() {
+      const box = map.getContainer().querySelector('.maplibregl-ctrl-attrib');
+      if (!box) return;
+
+      let touched = false; // 讀者自己點開／收合之後，就不再替他收起
+      box.addEventListener('click', () => { touched = true; });
+
+      const collapse = () => {
+        if (touched) return;
+        box.removeAttribute('open');
+        box.classList.remove('maplibregl-compact-show');
+      };
+
+      collapse();
+      // 地圖載入完成、版權資料更新後，MapLibre 可能再展開一次，所以再收一次
+      map.once('load', () => setTimeout(collapse, 0));
+    })();
 
     // 容器大小改變（顯示／隱藏導讀、旋轉手機）時，地圖跟著調整
     if (window.ResizeObserver) {
