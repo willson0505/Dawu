@@ -1403,10 +1403,6 @@ input[type="checkbox"] {
   font-size: 12px;
 }
 
-.maplibregl-ctrl-attrib-inner a {
-  color: inherit;
-}
-
   </style>
 </head>
 <body>
@@ -1940,7 +1936,7 @@ input[type="checkbox"] {
         <div class="section-title credit-title">資料來源</div>
 
         <div class="instruction">
-          <div><b>林野區分</b><span>農業部林業及自然保育署《日治時期森林計畫事業區分調查史料：要存置林野及準要存置林野調書．地圖集》</span></div>
+          <div><b>林野區分</b><span>林業及自然保育署典藏《要存置林野及準要存置林野調書．地圖》</span></div>
           <div><b>歷史地圖</b><span>中央研究院人文社會科學研究中心 GIS 專題中心「臺灣百年歷史地圖」</span></div>
           <div><b>底圖</b><span>OpenStreetMap、內政部國土測繪中心（臺灣通用電子地圖）、OpenTopoMap、Esri</span></div>
           <div><b>地形</b><span>Mapzen / AWS Terrain Tiles（整合 NASA SRTM、USGS 等公開高程資料）</span></div>
@@ -2060,15 +2056,11 @@ input[type="checkbox"] {
 
   // 右下角「圖資來源」展開後顯示的完整清單（所有串接的外部圖資都列在這裡）
   const ATTRIBUTION_LINES = [
-    '底圖：<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>、' +
-      '<a href="https://maps.nlsc.gov.tw/" target="_blank" rel="noopener">© 內政部國土測繪中心（臺灣通用電子地圖）</a>、' +
-      '<a href="https://opentopomap.org/" target="_blank" rel="noopener">© OpenTopoMap</a>（CC-BY-SA）、' +
-      '<a href="https://www.esri.com/" target="_blank" rel="noopener">© Esri, Maxar, Earthstar Geographics 及 GIS 使用者社群</a>',
-    '地形高程與暈渲：<a href="https://registry.opendata.aws/terrain-tiles/" target="_blank" rel="noopener">Mapzen / AWS Terrain Tiles</a>（整合 NASA SRTM、USGS 等公開高程資料）',
-    '歷史地圖：<a href="https://gis.sinica.edu.tw/" target="_blank" rel="noopener">中央研究院人文社會科學研究中心 GIS 專題中心</a>「臺灣百年歷史地圖」',
+    '底圖：© OpenStreetMap contributors、© 內政部國土測繪中心（臺灣通用電子地圖）、© OpenTopoMap（CC-BY-SA）、© Esri, Maxar, Earthstar Geographics 及 GIS 使用者社群',
+    '地形高程與暈渲：Mapzen / AWS Terrain Tiles（整合 NASA SRTM、USGS 等公開高程資料）',
+    '歷史地圖：中央研究院人文社會科學研究中心 GIS 專題中心「臺灣百年歷史地圖」',
     '林野資料：林業及自然保育署《要存置林野及準要存置林野調書．地圖》',
-    '南庄導讀：洪廣冀《日治時期森林計畫事業區分調查史料》解讀──以南庄調查區為例',
-    '地圖引擎：<a href="https://maplibre.org/" target="_blank" rel="noopener">MapLibre GL JS</a>'
+    '地圖引擎：MapLibre GL JS'
   ];
 
   // 底圖（都是公開的 XYZ 圖磚）。第一個為預設。
