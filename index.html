@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>要存置及準要存置林野圖臺｜大武調查區</title>
+  <title>要存置及準要存置林野圖臺</title>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
   <style>
 /* =========================================================
@@ -915,9 +915,17 @@ input[type="checkbox"] {
   border-radius: 3px;
 }
 
-.legend-home {
-  width: 100%;
+.legend-areas {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
   margin-top: 8px;
+}
+
+.legend-home {
+  display: block;
+  width: 100%;
+  margin: 0;
   padding: 5px 8px;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -1881,7 +1889,7 @@ input[type="checkbox"] {
           <button id="search-btn">搜尋</button>
         </div>
 
-        <div class="search-hint">可搜尋大武調查區內所有林野圖徵的名稱與屬性。</div>
+        <div class="search-hint">可搜尋大武、臺東調查區內所有林野圖徵的名稱與屬性（例如：地名、番號、大字）。</div>
 
         <div id="search-results"></div>
 
@@ -1994,7 +2002,10 @@ input[type="checkbox"] {
       <div class="legend-row"><span class="legend-key quasi"></span>準要存置林野</div>
       <div class="legend-row"><span class="legend-key nonreserved"></span>不要存置林野</div>
       <div class="legend-row"><span class="legend-key boundary"></span>調查區界</div>
-      <button class="legend-home" id="btn-home">⌂ 回到調查區</button>
+      <div class="legend-areas">
+        <button class="legend-home" id="btn-home" data-area="dawu">⌂ 大武調查區</button>
+        <button class="legend-home" id="btn-taitung" data-area="taitung">⌂ 臺東調查區</button>
+      </div>
     </div>
 
     <div id="loading">正在載入地圖資料……</div>
@@ -2034,11 +2045,33 @@ input[type="checkbox"] {
   const FALLBACK_DATA_BASE = 'https://willson0505.github.io/Dawu/';
 
   const DATA_FILES = {
-    keep: '大武要存置圖層.geojson',
-    semi: '大武準要存置圖層.geojson',
-    remove: '大武不要存置圖層.geojson',
     bounds: '調查區界.geojson'
   };
+
+  // 圖臺上的調查區。之後新增調查區，只要在這裡加一筆（三個檔案：要存置／準要存置／不要存置）。
+  //   storyLink：導讀文章的地名連動只針對這個調查區的資料（目前只有大武有導讀文章）
+  const SURVEY_AREAS = [
+    {
+      id: 'dawu',
+      name: '大武調查區',
+      storyLink: true,
+      files: {
+        keep: '大武要存置圖層.geojson',
+        semi: '大武準要存置圖層.geojson',
+        remove: '大武不要存置圖層.geojson'
+      }
+    },
+    {
+      id: 'taitung',
+      name: '臺東調查區',
+      storyLink: false,
+      files: {
+        keep: '臺東要存置圖層.geojson',
+        semi: '臺東準要存置圖層.geojson',
+        remove: '臺東不要存置圖層.geojson'
+      }
+    }
+  ];
 
   // 調查區界（含全臺各調查區，檔案較大）：預設載入，在背景下載，不影響導讀與地圖操作
   const LOAD_SURVEY_BOUNDARY = true;
@@ -2177,6 +2210,13 @@ input[type="checkbox"] {
     ['kinabariyan', 'kinabayan'],
     ['tokotokowan', 'tokotowan']
   ];
+
+  // 「臺東調查區 · 準要存置林野」：有調查區名稱時一併顯示
+  const layerLabelFor = (layerId, props) => {
+    const base = LAYER_LABELS[layerId] || layerId;
+    const area = props && props.__area_name__;
+    return area ? area + ' · ' + base : base;
+  };
 
   const PANEL_INFO = {
     story:    { title: '導讀',     subtitle: '選擇想閱讀的文章' },
@@ -2741,19 +2781,25 @@ input[type="checkbox"] {
     async function loadAllData() {
       const data = {};
       const errors = [];
+      const jobs = [];
 
-      await Promise.all(
-        ['keep', 'semi', 'remove'].map(async key => {
-          try {
-            data[key] = await loadJSON(DATA_FILES[key]);
-          } catch (err) {
-            console.warn('[導讀連動]', err);
-            errors.push(DATA_FILES[key]);
-            data[key] = null;
-          }
-        })
-      );
+      SURVEY_AREAS.forEach(area => {
+        Object.keys(FILE_TO_LAYER).forEach(key => {
+          const file = area.files[key];
+          if (!file) return;
+          jobs.push(
+            loadJSON(file)
+              .then(fc => { data[area.id + '|' + key] = fc; })
+              .catch(err => {
+                console.warn('[林野資料]', err);
+                errors.push(file);
+                data[area.id + '|' + key] = null;
+              })
+          );
+        });
+      });
 
+      await Promise.all(jobs);
       return { data, errors };
     }
 
@@ -2761,16 +2807,20 @@ input[type="checkbox"] {
       let id = 0;
       const list = [];
 
-      Object.keys(FILE_TO_LAYER).forEach(key => {
-        const fc = data[key];
-        if (!fc || !fc.features) return;
+      SURVEY_AREAS.forEach(area => {
+        Object.keys(FILE_TO_LAYER).forEach(key => {
+          const fc = data[area.id + '|' + key];
+          if (!fc || !fc.features) return;
 
-        fc.features.forEach(f => {
-          if (!f || !f.geometry) return;
-          f.properties = f.properties || {};
-          f.properties.__feature_id__ = id++;
-          f.properties.__cat__ = FILE_TO_LAYER[key];
-          list.push(f);
+          fc.features.forEach(f => {
+            if (!f || !f.geometry) return;
+            f.properties = f.properties || {};
+            f.properties.__feature_id__ = id++;
+            f.properties.__cat__ = FILE_TO_LAYER[key];
+            f.properties.__area__ = area.id;
+            f.properties.__area_name__ = area.name;
+            list.push(f);
+          });
         });
       });
 
@@ -3106,7 +3156,9 @@ input[type="checkbox"] {
     --------------------------------------------------- */
 
     function buildPopup(label, props) {
-      const title = propByName(props, '地名');
+      const number = propByName(props, '番號');
+      // 沒有地名時，用番號當標題（臺東等調查區的許多地塊沒有地名）
+      const title = propByName(props, '地名') || (number ? '番號 ' + number : '');
 
       const rows = Object.keys(props || {})
         .filter(k => {
@@ -3169,16 +3221,41 @@ input[type="checkbox"] {
       }
     });
 
-    $('btn-home').addEventListener('click', () => {
+    // 圖例上的「大武調查區」「臺東調查區」：飛到該調查區
+    function goToArea(areaId) {
       unlock();
-      map.flyTo({
-        center: HOME_VIEW.center,
-        zoom: HOME_VIEW.zoom,
-        pitch: state.is3D ? HOME_VIEW.pitch : 0,
+
+      // 大武沿用原本設計好的視角；其他調查區依資料範圍自動取景
+      if (areaId === 'dawu') {
+        map.flyTo({
+          center: HOME_VIEW.center,
+          zoom: HOME_VIEW.zoom,
+          pitch: state.is3D ? HOME_VIEW.pitch : 0,
+          bearing: state.is3D ? HOME_VIEW.bearing : 0,
+          duration: 1200,
+          essential: true
+        });
+        return;
+      }
+
+      const bb = featuresBBox(state.places.filter(f => f.properties.__area__ === areaId));
+      if (!bb) {
+        setNotice('這個調查區的資料尚未載入。', 'notice', 5000);
+        return;
+      }
+
+      map.fitBounds(bb.bounds, {
+        padding: safePadding(),
+        maxZoom: 12,
+        pitch: state.is3D ? 55 : 0,
         bearing: state.is3D ? HOME_VIEW.bearing : 0,
-        duration: 1200,
+        duration: 1400,
         essential: true
       });
+    }
+
+    document.querySelectorAll('.legend-home[data-area]').forEach(btn => {
+      btn.addEventListener('click', () => goToArea(btn.dataset.area));
     });
 
     $('btn-location').addEventListener('click', () => {
@@ -3830,6 +3907,8 @@ input[type="checkbox"] {
         });
       }
 
+      // 「台東」與「臺東」都能搜到
+      const kwList = Array.from(new Set([keyword, keyword.replace(/台/g, '臺')]));
       const kwKey = placeKey(keyword);
       const seen = new Set();
       const hits = [];
@@ -3839,8 +3918,9 @@ input[type="checkbox"] {
 
         const matched =
           Object.keys(props).some(k =>
-            !String(k).startsWith('__') && String(props[k]).toLowerCase().includes(keyword)
+            !String(k).startsWith('__') && kwList.some(w => String(props[k]).toLowerCase().includes(w))
           ) ||
+          kwList.some(w => String(props.__area_name__ || '').includes(w)) ||
           (kwKey && placeKey(getGeoPlaceName(item.feature)).includes(kwKey)) ||
           (LAYER_LABELS[item.layer] || '').includes(keyword);
 
@@ -3864,9 +3944,9 @@ input[type="checkbox"] {
         const number = propByName(props, '番號');
         const area = propByName(props, '面積(公頃)');
 
-        const title = name || number || '未命名資料';
+        const title = name || (number ? '番號 ' + number : '未命名資料');
         const sub = [
-          LAYER_LABELS[item.layer] || item.layer,
+          layerLabelFor(item.layer, props),
           number && name ? '番號 ' + number : '',
           area ? area + ' 公頃' : ''
         ].filter(Boolean).join(' · ');
@@ -3997,14 +4077,15 @@ input[type="checkbox"] {
           if (!features.length) return;
 
           const feature = features[0];
-          const label = LAYER_LABELS[feature.layer.id] || feature.layer.id;
+          const label = layerLabelFor(feature.layer.id, feature.properties);
 
           popup
             .setLngLat(e.lngLat)
             .setHTML(buildPopup(label, feature.properties || {}))
             .addTo(map);
 
-          revealInStory(getGeoPlaceName(feature));
+          // 導讀文章只對應大武：其他調查區的同名地點不會讓文章閃爍
+          if ((feature.properties || {}).__area__ === 'dawu') revealInStory(getGeoPlaceName(feature));
         });
 
         // 底圖與地形已就緒，先收起載入提示；林野資料晚點到也不影響操作
@@ -4014,7 +4095,10 @@ input[type="checkbox"] {
         const { data, errors } = await dataReady;
 
         state.places = buildPlaces(data);
+        // 導讀的地名連動只對有導讀文章的調查區（大武）；其他調查區的同名地點不會被誤連動
+        const linkAreas = new Set(SURVEY_AREAS.filter(a => a.storyLink).map(a => a.id));
         state.geoIndex = state.places
+          .filter(f => linkAreas.has(f.properties.__area__))
           .map(f => ({ feature: f, key: placeKey(getGeoPlaceName(f)) }))
           .filter(item => item.key);
 
